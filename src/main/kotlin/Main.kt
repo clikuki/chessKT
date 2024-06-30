@@ -1,32 +1,33 @@
 import org.openrndr.application
 import org.openrndr.color.ColorRGBa
-import org.openrndr.draw.loadFont
 import org.openrndr.draw.loadImage
-import org.openrndr.draw.tint
-import kotlin.math.cos
-import kotlin.math.sin
+import org.openrndr.extra.noise.fastFloor
+import org.openrndr.shape.Rectangle
 
 fun main() =
     application {
         configure {
+            title = "ChessRNDR"
             width = 1024
             height = 576
         }
-
         program {
-            val image = loadImage("data/images/pm5544.png")
-            val font = loadFont("data/fonts/default.otf", 64.0)
+            val pieceSpriteSheet = loadImage("data/images/1280px-Chess_Pieces.png")
+            val spriteSize = pieceSpriteSheet.width / 6.0
+            val pieceLoc =
+                buildList {
+                    for (x in 0..5) {
+                        for (y in 0..1) {
+                            add(Rectangle(x * spriteSize, y * spriteSize, spriteSize, spriteSize))
+                        }
+                    }
+                }
 
             extend {
-                drawer.drawStyle.colorMatrix = tint(ColorRGBa.WHITE.shade(0.2))
-                drawer.image(image)
+                drawer.clear(ColorRGBa.GRAY)
 
-                drawer.fill = ColorRGBa.PINK
-                drawer.circle(cos(seconds) * width / 2.0 + width / 2.0, sin(0.5 * seconds) * height / 2.0 + height / 2.0, 140.0)
-
-                drawer.fontMap = font
-                drawer.fill = ColorRGBa.WHITE
-                drawer.text("OPENRNDR", width / 2.0, height / 2.0)
+                val pieceSpriteIndex = seconds.fastFloor() % pieceLoc.size
+                drawer.image(pieceSpriteSheet, pieceLoc[pieceSpriteIndex], Rectangle(0.0, 0.0, spriteSize))
             }
         }
     }
