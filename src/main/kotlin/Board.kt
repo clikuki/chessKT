@@ -2,9 +2,13 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.experimental.xor
 
+//    TODO: Add Castling flags
+//    TODO: Add enpassant target sqr
+//    TODO: Add enpassant target sqr
+//    TODO: Add move/unmove methods
 class Board {
     val grid = ByteArray(64) { Piece.NONE }
-    val side: Byte = Piece.WHITE
+    var side: Byte = Piece.WHITE
 
     val bitboards =
         mutableMapOf(
@@ -124,10 +128,12 @@ class Board {
 
     companion object {
         fun from(fen: String): Board {
+            val fenParts = fen.split(' ')
             val grid = Board()
+
             var x = 0
             var y = 7
-            for (char in fen) {
+            for (char in fenParts[0]) {
                 if (char == '/') {
                     if (--y < 0) break
                     x = 0
