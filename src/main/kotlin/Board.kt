@@ -1,16 +1,62 @@
+import kotlin.experimental.and
 import kotlin.experimental.or
+import kotlin.experimental.xor
 
 class Board {
     val grid = ByteArray(64) { Piece.NONE }
+    val side: Byte = Piece.WHITE
 
-    val pawnBB = 0L
-    val bishopBB = 0L
-    val knightBB = 0L
-    val rookBB = 0L
-    val queenBB = 0L
-    val kingBB = 0L
-    val whiteBB = 0L
-    val blackBB = 0L
+    val bitboards =
+        mutableMapOf(
+            Piece.PAWN to 0L,
+            Piece.BISHOP to 0L,
+            Piece.KNIGHT to 0L,
+            Piece.ROOK to 0L,
+            Piece.QUEEN to 0L,
+            Piece.KING to 0L,
+            Piece.WHITE to 0L,
+            Piece.BLACK to 0L,
+        )
+    var pawnBB
+        get() = bitboards[Piece.PAWN]!!
+        set(v) {
+            bitboards[Piece.PAWN] = v
+        }
+    var bishopBB
+        get() = bitboards[Piece.BISHOP]!!
+        set(v) {
+            bitboards[Piece.BISHOP] = v
+        }
+    var knightBB
+        get() = bitboards[Piece.KNIGHT]!!
+        set(v) {
+            bitboards[Piece.KNIGHT] = v
+        }
+    var rookBB
+        get() = bitboards[Piece.ROOK]!!
+        set(v) {
+            bitboards[Piece.ROOK] = v
+        }
+    var queenBB
+        get() = bitboards[Piece.QUEEN]!!
+        set(v) {
+            bitboards[Piece.QUEEN] = v
+        }
+    var kingBB
+        get() = bitboards[Piece.KING]!!
+        set(v) {
+            bitboards[Piece.KING] = v
+        }
+    var whiteBB
+        get() = bitboards[Piece.WHITE]!!
+        set(v) {
+            bitboards[Piece.WHITE] = v
+        }
+    var blackBB
+        get() = bitboards[Piece.BLACK]!!
+        set(v) {
+            bitboards[Piece.BLACK] = v
+        }
 
     val occupancyBB get() = whiteBB or blackBB
     val whitePawnBB get() = whiteBB and pawnBB
@@ -26,17 +72,19 @@ class Board {
     val blackQueenBB get() = blackBB and queenBB
     val blackKingBB get() = blackBB and kingBB
 
-    fun getPawnBB(color: Byte) = if (color == Piece.WHITE) whitePawnBB else blackPawnBB
+    fun getPawnBB(color: Byte = side) = if (color == Piece.WHITE) whitePawnBB else blackPawnBB
 
-    fun getBishopBB(color: Byte) = if (color == Piece.WHITE) whiteBishopBB else blackBishopBB
+    fun getBishopBB(color: Byte = side) = if (color == Piece.WHITE) whiteBishopBB else blackBishopBB
 
-    fun getKnightBB(color: Byte) = if (color == Piece.WHITE) whiteKnightBB else blackKnightBB
+    fun getKnightBB(color: Byte = side) = if (color == Piece.WHITE) whiteKnightBB else blackKnightBB
 
-    fun getRookBB(color: Byte) = if (color == Piece.WHITE) whiteRookBB else blackRookBB
+    fun getRookBB(color: Byte = side) = if (color == Piece.WHITE) whiteRookBB else blackRookBB
 
-    fun getQueenBB(color: Byte) = if (color == Piece.WHITE) whiteQueenBB else blackQueenBB
+    fun getQueenBB(color: Byte = side) = if (color == Piece.WHITE) whiteQueenBB else blackQueenBB
 
-    fun getKingBB(color: Byte) = if (color == Piece.WHITE) whiteKingBB else blackKingBB
+    fun getKingBB(color: Byte = side) = if (color == Piece.WHITE) whiteKingBB else blackKingBB
+
+    fun getColor(piece: Byte = side) = piece and (Piece.WHITE or Piece.BLACK)
 
     fun get(pos: Int) = grid[pos]
 
@@ -45,7 +93,28 @@ class Board {
         y: Int,
         piece: Byte,
     ) {
-        grid[y * 8 + x] = piece
+//        Update grid
+        val i = y * 8 + x
+        grid[i] = piece
+
+        val clr = getColor(piece)
+        val mask = 1L shl i
+//        Fix possible bitboard colliding
+
+//        Set piece bitboards
+        if (clr == Piece.WHITE) {
+            whiteBB = whiteBB or mask
+        } else {
+            blackBB = blackBB or mask
+        }
+        when (piece xor clr) {
+            Piece.PAWN -> pawnBB = pawnBB or mask
+            Piece.BISHOP -> bishopBB = bishopBB or mask
+            Piece.KNIGHT -> knightBB = knightBB or mask
+            Piece.ROOK -> rookBB = rookBB or mask
+            Piece.QUEEN -> queenBB = queenBB or mask
+            Piece.KING -> kingBB = kingBB or mask
+        }
     }
 
     companion object {
