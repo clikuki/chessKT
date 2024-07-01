@@ -7,8 +7,8 @@ fun main() =
     application {
         configure {
             title = "ChessRNDR"
-            width = 1024
-            height = 576
+            width = 1088
+            height = 612
         }
         program {
             val pieceSpriteSheet = loadImage("data/images/1280px-Chess_Pieces.png")
