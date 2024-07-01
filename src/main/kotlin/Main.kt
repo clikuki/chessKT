@@ -1,7 +1,6 @@
 import org.openrndr.application
 import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.loadImage
-import org.openrndr.extra.noise.fastFloor
 import org.openrndr.shape.Rectangle
 
 fun main() =
@@ -18,16 +17,27 @@ fun main() =
                 buildList {
                     for (x in 0..5) {
                         for (y in 0..1) {
-                            add(Rectangle(x * spriteSize, y * spriteSize, spriteSize, spriteSize))
+                            add(Rectangle(x * spriteSize, y * spriteSize, spriteSize))
                         }
                     }
                 }
 
-            extend {
-                drawer.clear(ColorRGBa.GRAY)
+            val tileSize = height / 10.0
+            val boardOffset = (height - tileSize * 8) / 2
+            val boardLight = ColorRGBa.fromHex(0xf2e1c3)
+            val boardDark = ColorRGBa.fromHex(0xc3a082)
+            val windowBG = ColorRGBa.fromHex(0x3a3a3a)
 
-                val pieceSpriteIndex = seconds.fastFloor() % pieceLoc.size
-                drawer.image(pieceSpriteSheet, pieceLoc[pieceSpriteIndex], Rectangle(0.0, 0.0, spriteSize))
+            extend {
+                drawer.clear(windowBG)
+
+                drawer.stroke = null
+                for (x in 0..7) {
+                    for (y in 0..7) {
+                        drawer.fill = if ((x + y) % 2 == 0) boardLight else boardDark
+                        drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
+                    }
+                }
             }
         }
     }
