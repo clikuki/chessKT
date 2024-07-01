@@ -100,6 +100,11 @@ class Board {
         val clr = getColor(piece)
         val mask = 1L shl i
 //        Fix possible bitboard colliding
+        if (occupancyBB and mask != 0L) {
+            for ((type, bb) in bitboards) {
+                bitboards[type] = (bb xor mask) and bb
+            }
+        }
 
 //        Set piece bitboards
         if (clr == Piece.WHITE) {
