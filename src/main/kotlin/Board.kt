@@ -2,13 +2,20 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.experimental.xor
 
+data class Move(
+    val from: Int,
+    val to: Int,
+    val isEnpassant: Boolean,
+    val kingSideCastling: Boolean,
+    val queenSideCastling: Boolean,
+)
+
 //    TODO: Add Castling flags
 //    TODO: Add enpassant target sqr
-//    TODO: Add enpassant target sqr
-//    TODO: Add move/unmove methods
 class Board {
     val grid = ByteArray(64) { Piece.NONE }
     var side: Byte = Piece.WHITE
+    var enpassantTarget: Int? = null
 
     val bitboards =
         mutableMapOf(
@@ -88,8 +95,6 @@ class Board {
 
     fun getKingBB(color: Byte = side) = if (color == Piece.WHITE) whiteKingBB else blackKingBB
 
-    fun getColor(piece: Byte = side) = piece and (Piece.WHITE or Piece.BLACK)
-
     fun get(pos: Int) = grid[pos]
 
     fun set(
@@ -101,9 +106,9 @@ class Board {
         val i = y * 8 + x
         grid[i] = piece
 
-        val clr = getColor(piece)
-        val mask = 1L shl i
 //        Fix possible bitboard colliding
+        val clr = piece and Piece.COLOR
+        val mask = 1L shl i
         if (occupancyBB and mask != 0L) {
             for ((type, bb) in bitboards) {
                 bitboards[type] = (bb xor mask) and bb
@@ -124,6 +129,37 @@ class Board {
             Piece.QUEEN -> queenBB = queenBB or mask
             Piece.KING -> kingBB = kingBB or mask
         }
+    }
+
+    fun makeMove(move: Move) {
+//        Update grid
+        val fullpiece = grid[move.from]
+        val fullCaptured = grid[move.to]
+        grid[move.from] = Piece.NONE
+        grid[move.to] = fullpiece
+
+//        Update bitboards
+        val piece = fullpiece and Piece.TYPE
+        val clr = fullpiece and Piece.COLOR
+        val fromMask = (1L shl move.from)
+        val toMask = (1L shl move.to)
+        bitboards[piece] = bitboards[piece]!! or toMask xor fromMask
+        bitboards[clr] = bitboards[clr]!! or toMask xor fromMask
+
+        if (move.isEnpassant) {
+//            TODO: Support en passant
+        } else if (move.kingSideCastling || move.queenSideCastling) {
+//            TODO: Support castling
+        } else if (fullCaptured != Piece.NONE) {
+            val capturedPiece = fullCaptured and Piece.TYPE
+            val capturedClr = fullCaptured and Piece.COLOR
+            bitboards[capturedPiece] = bitboards[piece]!! xor toMask
+            bitboards[capturedClr] = bitboards[capturedClr]!! xor toMask
+        }
+    }
+
+    fun unmakeMove() {
+//        TODO: Implement unmake move
     }
 
     companion object {

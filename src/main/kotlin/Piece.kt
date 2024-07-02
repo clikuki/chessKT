@@ -8,4 +8,7 @@ object Piece {
     const val KING: Byte = 0b00_110
     const val WHITE: Byte = 0b01_000
     const val BLACK: Byte = 0b10_000
+
+    const val COLOR: Byte = 0b11_000
+    const val TYPE: Byte = 0b00_111
 }
