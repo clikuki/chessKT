@@ -1,8 +1,12 @@
 import org.openrndr.application
 import org.openrndr.color.ColorRGBa
+import org.openrndr.draw.loadFont
 import org.openrndr.draw.loadImage
+import org.openrndr.math.IntVector2
+import org.openrndr.math.Vector2
 import org.openrndr.shape.Rectangle
 import kotlin.experimental.or
+import kotlin.math.roundToInt
 
 fun main() =
     application {
@@ -26,35 +30,78 @@ fun main() =
                     }
                 }
 
+            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
             val tileSize = height / 10.0
             val boardOffset = (height - tileSize * 8) / 2
-            val boardLight = ColorRGBa.fromHex(0xf2e1c3)
-            val boardDark = ColorRGBa.fromHex(0xc3a082)
-            val windowBG = ColorRGBa.fromHex(0x3a3a3a)
+            val lightTile = ColorRGBa.fromHex("#f2e1c3")
+            val darkTile = ColorRGBa.fromHex("#c3a082")
+            val tileHighlight = ColorRGBa.fromHex("#08ff006c")
+            val windowBG = ColorRGBa.fromHex("#3a3a3a")
 
-            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
+            var mousePos: Vector2? = null
+            var pcMovePos: IntVector2? = null
 
+            mouse.moved.listen { mousePos = it.position }
+            mouse.buttonUp.listen { pcMovePos = null }
+            mouse.buttonDown.listen { e ->
+                if (
+                    pcMovePos == null &&
+                    e.position.x - boardOffset in 0.0..tileSize * 8 &&
+                    e.position.y - boardOffset in 0.0..tileSize * 8
+                ) {
+                    val piecePos = ((e.position - boardOffset) / tileSize).toInt()
+                    pcMovePos = piecePos
+                }
+            }
+
+            val font = loadFont("data/fonts/default.otf", 32.0)
             extend {
                 drawer.clear(windowBG)
 
+                if (mousePos != null) {
+                    drawer.fontMap = font
+                    drawer.fill = ColorRGBa.WHITE
+                    drawer.text("x:${mousePos!!.x.roundToInt()}", font.height, font.height * 1.4)
+                    drawer.text("y:${mousePos!!.y.roundToInt()}", font.height, font.height * 2.6)
+                }
+
+//                Draw board along with its pieces
                 drawer.stroke = null
                 for (x in 0..7) {
                     for (y in 0..7) {
-                        drawer.fill = if ((x + y) % 2 == 0) boardLight else boardDark
+                        drawer.fill = if ((x + y) % 2 == 0) lightTile else darkTile
                         drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
 
                         val piece = board.get(y * 8 + x)
-                        if (piece != Piece.NONE) {
-                            drawer.image(
-                                pieceSpriteSheet,
-                                pieceLoc[piece]!!,
-                                Rectangle(
-                                    x * tileSize + boardOffset,
-                                    y * tileSize + boardOffset,
-                                    tileSize,
-                                ),
-                            )
+                        if (piece == Piece.NONE) continue
+                        if (x == pcMovePos?.x && y == pcMovePos?.y) {
+                            drawer.fill = tileHighlight
+                            drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
+                            continue
                         }
+
+//                        drawer.opa
+                        drawer.image(
+                            pieceSpriteSheet,
+                            pieceLoc[piece]!!,
+                            Rectangle(
+                                x * tileSize + boardOffset,
+                                y * tileSize + boardOffset,
+                                tileSize,
+                            ),
+                        )
+                    }
+                }
+
+//                Draw moving piece separately
+                if (pcMovePos != null) {
+                    val movedPiece = board.get(pcMovePos!!.y * 8 + pcMovePos!!.x)
+                    if (movedPiece != Piece.NONE) {
+                        drawer.image(
+                            pieceSpriteSheet,
+                            pieceLoc[movedPiece]!!,
+                            Rectangle(mousePos!! - tileSize / 2, tileSize),
+                        )
                     }
                 }
             }
