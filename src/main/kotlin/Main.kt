@@ -1,12 +1,10 @@
 import org.openrndr.application
 import org.openrndr.color.ColorRGBa
-import org.openrndr.draw.loadFont
 import org.openrndr.draw.loadImage
 import org.openrndr.math.IntVector2
 import org.openrndr.math.Vector2
 import org.openrndr.shape.Rectangle
 import kotlin.experimental.or
-import kotlin.math.roundToInt
 
 fun main() =
     application {
@@ -16,6 +14,7 @@ fun main() =
             height = 612
         }
         program {
+            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
             val pieceSpriteSheet = loadImage("data/images/1280px-Chess_Pieces.png")
             val spriteSize = pieceSpriteSheet.width / 6.0
             val pieceLoc =
@@ -30,7 +29,6 @@ fun main() =
                     }
                 }
 
-            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
             val tileSize = height / 10.0
             val boardOffset = (height - tileSize * 8) / 2
             val lightTile = ColorRGBa.fromHex("#f2e1c3")
@@ -41,22 +39,22 @@ fun main() =
             var mousePos: Vector2? = null
             var pcMovePos: IntVector2? = null
 
+//            Helper functions
+            fun isWithinBoard(vec: Vector2) =
+                vec.x >= boardOffset &&
+                    vec.x < boardOffset + tileSize * 8 &&
+                    vec.y >= boardOffset &&
+                    vec.y < boardOffset + tileSize * 8
+
             mouse.moved.listen { mousePos = it.position }
             mouse.buttonDown.listen { e ->
-                if (
-                    pcMovePos == null &&
-                    e.position.x - boardOffset in 0.0..tileSize * 8 &&
-                    e.position.y - boardOffset in 0.0..tileSize * 8
-                ) {
+                if (pcMovePos == null && isWithinBoard(e.position)) {
                     val piecePos = ((e.position - boardOffset) / tileSize).toInt()
                     pcMovePos = piecePos
                 }
             }
             mouse.buttonUp.listen { e ->
-                if (pcMovePos != null &&
-                    e.position.x - boardOffset in 0.0..tileSize * 8 &&
-                    e.position.y - boardOffset in 0.0..tileSize * 8
-                ) {
+                if (pcMovePos != null && isWithinBoard(e.position)) {
                     val fromIndex = pcMovePos!!.let { it.y * 8 + it.x }
                     val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
 
@@ -74,16 +72,17 @@ fun main() =
                 pcMovePos = null
             }
 
-            val font = loadFont("data/fonts/default.otf", 32.0)
+//            val font = loadFont("data/fonts/default.otf", 32.0)
             extend {
                 drawer.clear(windowBG)
 
-                if (mousePos != null) {
-                    drawer.fontMap = font
-                    drawer.fill = ColorRGBa.WHITE
-                    drawer.text("x:${mousePos!!.x.roundToInt()}", font.height, font.height * 1.4)
-                    drawer.text("y:${mousePos!!.y.roundToInt()}", font.height, font.height * 2.6)
-                }
+// //                Debugging
+//                if (mousePos != null) {
+//                    drawer.fontMap = font
+//                    drawer.fill = ColorRGBa.WHITE
+//                    drawer.text("x:${mousePos!!.x.roundToInt()}", font.height, font.height * 1.4)
+//                    drawer.text("y:${mousePos!!.y.roundToInt()}", font.height, font.height * 2.6)
+//                }
 
 //                Draw board along with its pieces
                 drawer.stroke = null
@@ -100,7 +99,6 @@ fun main() =
                             continue
                         }
 
-//                        drawer.opa
                         drawer.image(
                             pieceSpriteSheet,
                             pieceLoc[piece]!!,
