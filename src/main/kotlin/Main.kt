@@ -42,7 +42,6 @@ fun main() =
             var pcMovePos: IntVector2? = null
 
             mouse.moved.listen { mousePos = it.position }
-            mouse.buttonUp.listen { pcMovePos = null }
             mouse.buttonDown.listen { e ->
                 if (
                     pcMovePos == null &&
@@ -52,6 +51,27 @@ fun main() =
                     val piecePos = ((e.position - boardOffset) / tileSize).toInt()
                     pcMovePos = piecePos
                 }
+            }
+            mouse.buttonUp.listen { e ->
+                if (pcMovePos != null &&
+                    e.position.x - boardOffset in 0.0..tileSize * 8 &&
+                    e.position.y - boardOffset in 0.0..tileSize * 8
+                ) {
+                    val fromIndex = pcMovePos!!.let { it.y * 8 + it.x }
+                    val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
+
+                    board.makeMove(
+                        Move(
+                            from = fromIndex,
+                            to = toIndex,
+                            isEnpassant = false,
+                            kingSideCastling = false,
+                            queenSideCastling = false,
+                        ),
+                    )
+                }
+
+                pcMovePos = null
             }
 
             val font = loadFont("data/fonts/default.otf", 32.0)
