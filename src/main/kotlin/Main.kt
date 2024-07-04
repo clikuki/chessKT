@@ -1,6 +1,10 @@
 import org.openrndr.application
+import org.openrndr.color.ColorHSLa
 import org.openrndr.color.ColorRGBa
+import org.openrndr.draw.loadFont
 import org.openrndr.draw.loadImage
+import org.openrndr.extra.gui.GUI
+import org.openrndr.extra.parameters.BooleanParameter
 import org.openrndr.math.IntVector2
 import org.openrndr.math.Vector2
 import org.openrndr.shape.Rectangle
@@ -14,8 +18,17 @@ fun main() =
             height = 612
         }
         program {
+            val gui = GUI()
+            val settings =
+                object {
+                    @BooleanParameter("Display Bitboards")
+                    var displayBitboards = true
+                }
+            gui.add(settings, "Settings")
+
             val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
             val pieceSpriteSheet = loadImage("data/images/1280px-Chess_Pieces.png")
+            val font = loadFont("data/fonts/default.otf", 32.0)
             val spriteSize = pieceSpriteSheet.width / 6.0
             val pieceLoc =
                 buildMap {
@@ -57,42 +70,63 @@ fun main() =
                 if (pcMovePos != null && isWithinBoard(e.position)) {
                     val fromIndex = pcMovePos!!.let { it.y * 8 + it.x }
                     val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
-
-                    board.makeMove(
-                        Move(
-                            from = fromIndex,
-                            to = toIndex,
-                            isEnpassant = false,
-                            kingSideCastling = false,
-                            queenSideCastling = false,
-                        ),
-                    )
+                    if (fromIndex != toIndex) {
+                        board.makeMove(
+                            Move(
+                                from = fromIndex,
+                                to = toIndex,
+                                isEnpassant = false,
+                                kingSideCastling = false,
+                                queenSideCastling = false,
+                            ),
+                        )
+                    }
                 }
 
                 pcMovePos = null
             }
 
-//            val font = loadFont("data/fonts/default.otf", 32.0)
+            val bitboardTrackers =
+                listOf(
+                    board::pawnBB,
+                    board::bishopBB,
+                    board::knightBB,
+                    board::rookBB,
+                    board::queenBB,
+                    board::kingBB,
+                ).let {
+                    it.mapIndexed { i, bb ->
+                        bb to ColorHSLa(360.0 * i / it.size, 1.0, .5, .4).toRGBa()
+                    }
+                }
+
+            extend(gui)
             extend {
                 drawer.clear(windowBG)
 
-// //                Debugging
-//                if (mousePos != null) {
-//                    drawer.fontMap = font
-//                    drawer.fill = ColorRGBa.WHITE
-//                    drawer.text("x:${mousePos!!.x.roundToInt()}", font.height, font.height * 1.4)
-//                    drawer.text("y:${mousePos!!.y.roundToInt()}", font.height, font.height * 2.6)
-//                }
-
-//                Draw board along with its pieces
+//                Loop through each board tile
                 drawer.stroke = null
                 for (x in 0..7) {
                     for (y in 0..7) {
                         drawer.fill = if ((x + y) % 2 == 0) lightTile else darkTile
                         drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
 
-                        val piece = board.get(y * 8 + x)
+                        val index = y * 8 + x
+                        val piece = board.get(index)
+
+//                        Draw bit clr from bitboard
+                        if (settings.displayBitboards) {
+                            val mask = 1L shl index
+                            for ((bb, clr) in bitboardTrackers) {
+                                if (bb() and mask != 0L) {
+                                    drawer.fill = clr
+                                    drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
+                                }
+                            }
+                        }
+
                         if (piece == Piece.NONE) continue
+//                        Highlight move start tile
                         if (x == pcMovePos?.x && y == pcMovePos?.y) {
                             drawer.fill = tileHighlight
                             drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)

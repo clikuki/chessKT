@@ -138,14 +138,9 @@ class Board {
         grid[move.from] = Piece.NONE
         grid[move.to] = fullpiece
 
-//        Update bitboards
-        val piece = fullpiece and Piece.TYPE
-        val clr = fullpiece and Piece.COLOR
+//        Remove captured from BB
         val fromMask = (1L shl move.from)
         val toMask = (1L shl move.to)
-        bitboards[piece] = bitboards[piece]!! or toMask xor fromMask
-        bitboards[clr] = bitboards[clr]!! or toMask xor fromMask
-
         if (move.isEnpassant) {
 //            TODO: Support en passant
         } else if (move.kingSideCastling || move.queenSideCastling) {
@@ -153,9 +148,15 @@ class Board {
         } else if (fullCaptured != Piece.NONE) {
             val capturedPiece = fullCaptured and Piece.TYPE
             val capturedClr = fullCaptured and Piece.COLOR
-            bitboards[capturedPiece] = bitboards[piece]!! xor toMask
+            bitboards[capturedPiece] = bitboards[capturedPiece]!! xor toMask
             bitboards[capturedClr] = bitboards[capturedClr]!! xor toMask
         }
+
+//        Update pc position in BB
+        val piece = fullpiece and Piece.TYPE
+        val clr = fullpiece and Piece.COLOR
+        bitboards[piece] = bitboards[piece]!! or toMask xor fromMask
+        bitboards[clr] = bitboards[clr]!! or toMask xor fromMask
     }
 
     fun unmakeMove() {
