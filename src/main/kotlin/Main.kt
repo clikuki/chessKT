@@ -1,9 +1,9 @@
 import org.openrndr.application
 import org.openrndr.color.ColorHSLa
 import org.openrndr.color.ColorRGBa
-import org.openrndr.draw.loadFont
 import org.openrndr.draw.loadImage
 import org.openrndr.extra.gui.GUI
+import org.openrndr.extra.parameters.ActionParameter
 import org.openrndr.extra.parameters.BooleanParameter
 import org.openrndr.math.IntVector2
 import org.openrndr.math.Vector2
@@ -18,17 +18,25 @@ fun main() =
             height = 612
         }
         program {
+            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
+            val moveStack = ArrayDeque<Move>()
+
             val gui = GUI()
             val settings =
                 object {
                     @BooleanParameter("Display Bitboards")
                     var displayBitboards = true
+
+                    @Suppress("unused")
+                    @ActionParameter("Undo Move")
+                    fun undoMove() {
+                        if (moveStack.isEmpty()) return
+                        board.unmakeMove(moveStack.removeLast())
+                    }
                 }
             gui.add(settings, "Settings")
 
-            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
             val pieceSpriteSheet = loadImage("data/images/1280px-Chess_Pieces.png")
-            val font = loadFont("data/fonts/default.otf", 32.0)
             val spriteSize = pieceSpriteSheet.width / 6.0
             val pieceLoc =
                 buildMap {
@@ -71,15 +79,15 @@ fun main() =
                     val fromIndex = pcMovePos!!.let { it.y * 8 + it.x }
                     val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
                     if (fromIndex != toIndex) {
-                        board.makeMove(
+                        val move =
                             Move(
                                 from = fromIndex,
                                 to = toIndex,
                                 isEnpassant = false,
-                                kingSideCastling = false,
-                                queenSideCastling = false,
-                            ),
-                        )
+                                castling = 0,
+                            )
+                        board.makeMove(move)
+                        moveStack.add(move)
                     }
                 }
 

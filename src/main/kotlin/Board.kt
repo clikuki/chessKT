@@ -1,21 +1,41 @@
+import java.util.Stack
 import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.experimental.xor
+
+object Castling {
+    const val BK: Byte = 0b0001
+    const val BQ: Byte = 0b0010
+    const val WK: Byte = 0b0100
+    const val WQ: Byte = 0b1000
+    const val KING: Byte = 0b0101
+    const val QUEEN: Byte = 0b1010
+    const val FULL: Byte = 0b1111
+    const val EMPTY: Byte = 0b0000
+}
 
 data class Move(
     val from: Int,
     val to: Int,
     val isEnpassant: Boolean,
-    val kingSideCastling: Boolean,
-    val queenSideCastling: Boolean,
+    val castling: Byte,
 )
 
-//    TODO: Add Castling flags
-//    TODO: Add enpassant target sqr
+data class Unmove(
+    val captured: Byte,
+    val prevEnpassant: Int?,
+    val prevCastling: Byte,
+    val prevHalfMoves: Int,
+)
+
 class Board {
     val grid = ByteArray(64) { Piece.NONE }
     var side: Byte = Piece.WHITE
     var enpassantTarget: Int? = null
+    var halfMoveClock = 0
+    var fullMoveCounter = 1
+    var castlingRights = Castling.FULL
+    val unmoveStack = Stack<Unmove>()
 
     val bitboards =
         mutableMapOf(
@@ -132,18 +152,29 @@ class Board {
     }
 
     fun makeMove(move: Move) {
-//        Update grid
         val fullpiece = grid[move.from]
-        val fullCaptured = grid[move.to]
+        val fullCaptured = if (move.isEnpassant) grid[enpassantTarget!!] else grid[move.to]
+        unmoveStack.push(
+            Unmove(
+                captured = fullCaptured,
+                prevHalfMoves = halfMoveClock,
+                prevEnpassant = enpassantTarget,
+                prevCastling = castlingRights,
+            ),
+        )
+
+//        Update grid
         grid[move.from] = Piece.NONE
         grid[move.to] = fullpiece
+        if (move.isEnpassant) {
+            grid[enpassantTarget!!] = Piece.NONE
+        }
+        enpassantTarget = null
 
 //        Remove captured from BB
         val fromMask = (1L shl move.from)
         val toMask = (1L shl move.to)
-        if (move.isEnpassant) {
-//            TODO: Support en passant
-        } else if (move.kingSideCastling || move.queenSideCastling) {
+        if (move.castling != Castling.EMPTY) {
 //            TODO: Support castling
         } else if (fullCaptured != Piece.NONE) {
             val capturedPiece = fullCaptured and Piece.TYPE
@@ -157,10 +188,56 @@ class Board {
         val clr = fullpiece and Piece.COLOR
         bitboards[piece] = bitboards[piece]!! or toMask xor fromMask
         bitboards[clr] = bitboards[clr]!! or toMask xor fromMask
+
+        if (piece == Piece.PAWN || fullCaptured != Piece.NONE) {
+            halfMoveClock = 0
+        } else {
+            halfMoveClock++
+        }
+
+        if (side == Piece.WHITE) {
+            side = Piece.BLACK
+        } else {
+            side = Piece.WHITE
+            fullMoveCounter++
+        }
     }
 
-    fun unmakeMove() {
-//        TODO: Implement unmake move
+    fun unmakeMove(move: Move) {
+        val unmove = unmoveStack.pop() ?: return
+        val fullpiece = grid[move.to]
+        val fullCaptured = unmove.captured
+
+//        Reset irreversible board states
+        enpassantTarget = unmove.prevEnpassant
+        castlingRights = unmove.prevCastling
+        halfMoveClock = unmove.prevHalfMoves
+
+//        Update grid
+        grid[move.from] = fullpiece
+        if (move.isEnpassant) {
+            grid[unmove.prevEnpassant!!] = fullCaptured
+        } else {
+            grid[move.to] = fullCaptured
+        }
+
+//        Update pc position in BB
+        val fromMask = (1L shl move.from)
+        val toMask = (1L shl move.to)
+        val piece = fullpiece and Piece.TYPE
+        val clr = fullpiece and Piece.COLOR
+        bitboards[piece] = bitboards[piece]!! or fromMask xor toMask
+        bitboards[clr] = bitboards[clr]!! or fromMask xor toMask
+
+//        Remove captured from BB
+        if (move.castling != Castling.EMPTY) {
+//            TODO: Support castling unmove
+        } else if (fullCaptured != Piece.NONE) {
+            val capturedPiece = fullCaptured and Piece.TYPE
+            val capturedClr = fullCaptured and Piece.COLOR
+            bitboards[capturedPiece] = bitboards[capturedPiece]!! or toMask
+            bitboards[capturedClr] = bitboards[capturedClr]!! or toMask
+        }
     }
 
     companion object {
