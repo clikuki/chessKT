@@ -1,11 +1,12 @@
 import org.openrndr.application
 import org.openrndr.color.ColorHSLa
 import org.openrndr.color.ColorRGBa
+import org.openrndr.draw.isolated
 import org.openrndr.draw.loadImage
 import org.openrndr.extra.gui.GUI
 import org.openrndr.extra.parameters.ActionParameter
 import org.openrndr.extra.parameters.BooleanParameter
-import org.openrndr.math.IntVector2
+import org.openrndr.math.Matrix55
 import org.openrndr.math.Vector2
 import org.openrndr.shape.Rectangle
 import kotlin.experimental.or
@@ -20,6 +21,7 @@ fun main() =
         program {
             val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
             val moveStack = ArrayDeque<Move>()
+            var validMoves = MoveGen.pseudoLegal(board)
 
             val gui = GUI()
             val settings =
@@ -56,9 +58,37 @@ fun main() =
             val darkTile = ColorRGBa.fromHex("#c3a082")
             val tileHighlight = ColorRGBa.fromHex("#08ff006c")
             val windowBG = ColorRGBa.fromHex("#3a3a3a")
+            val translucencyMatrix =
+                Matrix55(
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.5,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                )
 
             var mousePos: Vector2? = null
-            var pcMovePos: IntVector2? = null
+            var pcMoveIndex: Int? = null
 
 //            Helper functions
             fun isWithinBoard(vec: Vector2) =
@@ -69,29 +99,28 @@ fun main() =
 
             mouse.moved.listen { mousePos = it.position }
             mouse.buttonDown.listen { e ->
-                if (pcMovePos == null && isWithinBoard(e.position)) {
-                    val piecePos = ((e.position - boardOffset) / tileSize).toInt()
-                    pcMovePos = piecePos
+                if (pcMoveIndex == null && isWithinBoard(e.position)) {
+                    pcMoveIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
                 }
             }
             mouse.buttonUp.listen { e ->
-                if (pcMovePos != null && isWithinBoard(e.position)) {
-                    val fromIndex = pcMovePos!!.let { it.y * 8 + it.x }
+                if (pcMoveIndex != null && isWithinBoard(e.position)) {
                     val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
-                    if (fromIndex != toIndex) {
+                    if (pcMoveIndex!! != toIndex && validMoves.any { it.from == pcMoveIndex!! && it.to == toIndex }) {
                         val move =
                             Move(
-                                from = fromIndex,
+                                from = pcMoveIndex!!,
                                 to = toIndex,
                                 isEnpassant = false,
                                 castling = 0,
                             )
                         board.makeMove(move)
                         moveStack.add(move)
+                        validMoves = MoveGen.pseudoLegal(board)
                     }
                 }
 
-                pcMovePos = null
+                pcMoveIndex = null
             }
 
             val bitboardTrackers =
@@ -133,29 +162,37 @@ fun main() =
                             }
                         }
 
-                        if (piece == Piece.NONE) continue
-//                        Highlight move start tile
-                        if (x == pcMovePos?.x && y == pcMovePos?.y) {
+//                        Highlight move start/end tile
+                        if (
+                            pcMoveIndex is Int &&
+                            (pcMoveIndex!! == index || validMoves.any { it.from == pcMoveIndex!! && it.to == index })
+                        ) {
                             drawer.fill = tileHighlight
                             drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
-                            continue
                         }
+                        if (piece == Piece.NONE) continue
 
-                        drawer.image(
-                            pieceSpriteSheet,
-                            pieceLoc[piece]!!,
-                            Rectangle(
-                                x * tileSize + boardOffset,
-                                y * tileSize + boardOffset,
-                                tileSize,
-                            ),
-                        )
+                        drawer.isolated {
+                            if (pcMoveIndex is Int && pcMoveIndex == index) {
+                                drawer.drawStyle.colorMatrix = translucencyMatrix
+                            }
+
+                            drawer.image(
+                                pieceSpriteSheet,
+                                pieceLoc[piece]!!,
+                                Rectangle(
+                                    x * tileSize + boardOffset,
+                                    y * tileSize + boardOffset,
+                                    tileSize,
+                                ),
+                            )
+                        }
                     }
                 }
 
 //                Draw moving piece separately
-                if (pcMovePos != null) {
-                    val movedPiece = board.get(pcMovePos!!.y * 8 + pcMovePos!!.x)
+                if (pcMoveIndex != null) {
+                    val movedPiece = board.get(pcMoveIndex!!)
                     if (movedPiece != Piece.NONE) {
                         drawer.image(
                             pieceSpriteSheet,
