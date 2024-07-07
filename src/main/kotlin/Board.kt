@@ -238,6 +238,13 @@ class Board {
             bitboards[capturedPiece] = bitboards[capturedPiece]!! or toMask
             bitboards[capturedClr] = bitboards[capturedClr]!! or toMask
         }
+
+        if (side == Piece.WHITE) {
+            side = Piece.BLACK
+        } else {
+            side = Piece.WHITE
+            fullMoveCounter++
+        }
     }
 
     companion object {
