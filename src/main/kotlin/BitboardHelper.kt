@@ -180,11 +180,11 @@ object Shift {
 
     fun east(a: ULong) = (a shl 1) and NOT_A_FILE
 
-    fun noEa(b: ULong) = (b shl 9) and NOT_A_FILE
+    fun soEa(b: ULong) = (b shl 9) and NOT_A_FILE
 
-    fun soEa(b: ULong) = (b shr 7) and NOT_A_FILE
+    fun noEa(b: ULong) = (b shr 7) and NOT_A_FILE
 
-    fun soWe(b: ULong) = (b shr 9) and NOT_H_FILE
+    fun noWe(b: ULong) = (b shr 9) and NOT_H_FILE
 
-    fun noWe(b: ULong) = (b shl 7) and NOT_H_FILE
+    fun soWe(b: ULong) = (b shl 7) and NOT_H_FILE
 }

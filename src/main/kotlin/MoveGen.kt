@@ -5,15 +5,16 @@ private fun generateOrthogonalMoves(
     list: MutableList<Move>,
 ) {
     var sliders = board.getQueenBB() or board.getRookBB()
-    val nonblockers = (board.occupancyBB xor sliders).inv()
-    val opp = board.getOpponentBB()
+    val enemy = board.getOpponentBB()
+    val friendly = board.getColorBB()
     var (lsb1, from) = lsb(sliders)
     while (lsb1 != 0UL) {
-        val north = Occl.nort(lsb1, nonblockers)
-        val south = Occl.sout(lsb1, nonblockers)
-        val west = Occl.west(lsb1, nonblockers)
-        val east = Occl.east(lsb1, nonblockers)
+        val north = Occl.nort(lsb1, (friendly or Shift.nort(enemy)).inv())
+        val south = Occl.sout(lsb1, (friendly or Shift.sout(enemy)).inv())
+        val west = Occl.west(lsb1, (friendly or Shift.west(enemy)).inv())
+        val east = Occl.east(lsb1, (friendly or Shift.east(enemy)).inv())
         var rays = (north or south or west or east) xor lsb1
+
         var (lsb2, to) = lsb(rays)
         while (rays != 0UL) {
             list.add(Move(from, to, type = 0))
@@ -38,13 +39,14 @@ private fun generateDiagonalMoves(
     list: MutableList<Move>,
 ) {
     var sliders = board.getQueenBB() or board.getBishopBB()
-    val nonblockers = (board.occupancyBB xor sliders).inv()
+    val enemy = board.getOpponentBB()
+    val friendly = board.getColorBB()
     var (lsb1, from) = lsb(sliders)
     while (lsb1 != 0UL) {
-        val noWe = Occl.noWe(lsb1, nonblockers)
-        val noEa = Occl.noEa(lsb1, nonblockers)
-        val soWe = Occl.soWe(lsb1, nonblockers)
-        val soEa = Occl.soEa(lsb1, nonblockers)
+        val noWe = Occl.noWe(lsb1, (friendly or Shift.noWe(enemy)).inv())
+        val noEa = Occl.noEa(lsb1, (friendly or Shift.noEa(enemy)).inv())
+        val soWe = Occl.soWe(lsb1, (friendly or Shift.soWe(enemy)).inv())
+        val soEa = Occl.soEa(lsb1, (friendly or Shift.soEa(enemy)).inv())
         var rays = (noWe or noEa or soWe or soEa) xor lsb1
         var (lsb2, to) = lsb(rays)
         while (rays != 0UL) {
