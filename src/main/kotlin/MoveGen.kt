@@ -67,6 +67,18 @@ private fun generateDiagonalMoves(
     }
 }
 
+private fun generatePromotions(
+    moves: MutableList<Move>,
+    from: Int,
+    to: Int,
+    isCapture: Boolean,
+) {
+    moves.add(Move(from, to, type = if (isCapture) Move.N_PROMO_CAPTURE else Move.N_PROMOTE))
+    moves.add(Move(from, to, type = if (isCapture) Move.B_PROMO_CAPTURE else Move.B_PROMOTE))
+    moves.add(Move(from, to, type = if (isCapture) Move.R_PROMO_CAPTURE else Move.R_PROMOTE))
+    moves.add(Move(from, to, type = if (isCapture) Move.Q_PROMO_CAPTURE else Move.Q_PROMOTE))
+}
+
 private fun generatePawnMoves(
     board: Board,
     moves: MutableList<Move>,
@@ -74,83 +86,142 @@ private fun generatePawnMoves(
     val isWhite = board.side == Piece.WHITE
     val forwardOffset = if (isWhite) -8 else 8
     val shifter = if (isWhite) Shift::nort else Shift::sout
+
     val promotionRank = if (isWhite) RANK_8 else RANK_1
+    val nonPromoRanks = promotionRank.inv()
     val dblPushRank = if (isWhite) RANK_2 else RANK_7
 
     val pawns = board.getPawnBB()
+    val capturable = board.getOpponentBB()
     val emptySqrs = board.occupancyBB.inv()
-    var normalPawns = shifter(pawns and promotionRank.inv(), 1) and emptySqrs
+
+    var normalPawns = shifter(pawns and nonPromoRanks, 1) and emptySqrs
     var promoPawns = shifter(pawns and promotionRank, 1) and emptySqrs
     var dblPushPawns = shifter(pawns and dblPushRank, 2) and (emptySqrs and shifter(emptySqrs, 1))
 
-//    Normal push
-    var (normLsb, normIndex) = lsb(normalPawns)
-    while (normLsb != 0UL) {
-        moves.add(Move(from = normIndex - forwardOffset, to = normIndex, type = 0))
+    val left = if (isWhite) Shift::noWe else Shift::soWe
+    val right = if (isWhite) Shift::noEa else Shift::soEa
+    var normalCaptureLeft = left(pawns and nonPromoRanks) and capturable
+    var normalCaptureRight = right(pawns and nonPromoRanks) and capturable
+    var promoCaptureLeft = left(pawns and promotionRank) and capturable
+    var promoCaptureRight = right(pawns and promotionRank) and capturable
 
-        normalPawns = normalPawns xor normLsb
-        with(lsb(normalPawns)) {
-            normLsb = first
-            normIndex = second
+//    Normal push
+    if (normalPawns != 0UL) {
+        var (lsb, index) = lsb(normalPawns)
+        while (lsb != 0UL) {
+            moves.add(Move(from = index - forwardOffset, to = index, type = 0))
+
+            normalPawns = normalPawns xor lsb
+            with(lsb(normalPawns)) {
+                lsb = first
+                index = second
+            }
         }
     }
 
 //    Double push
-    var (dblLsb, dblIndex) = lsb(dblPushPawns)
-    while (dblLsb != 0UL) {
-        moves.add(
-            Move(
-                from = dblIndex - forwardOffset - forwardOffset,
-                to = dblIndex,
-                type = Move.DBL_PUSH,
-            ),
-        )
+    if (dblPushPawns != 0UL) {
+        var (lsb, index) = lsb(dblPushPawns)
+        while (lsb != 0UL) {
+            moves.add(
+                Move(
+                    from = index - forwardOffset - forwardOffset,
+                    to = index,
+                    type = Move.DBL_PUSH,
+                ),
+            )
 
-        dblPushPawns = dblPushPawns xor dblLsb
-        with(lsb(dblPushPawns)) {
-            dblLsb = first
-            dblIndex = second
+            dblPushPawns = dblPushPawns xor lsb
+            with(lsb(dblPushPawns)) {
+                lsb = first
+                index = second
+            }
+        }
+    }
+
+//    Normal capture
+    if (normalCaptureLeft != 0UL) {
+        var (lsb, index) = lsb(normalCaptureLeft)
+        while (lsb != 0UL) {
+            moves.add(Move(from = index - forwardOffset + 1, to = index, type = Move.CAPTURE))
+
+            normalCaptureLeft = normalCaptureLeft xor lsb
+            with(lsb(normalCaptureLeft)) {
+                lsb = first
+                index = second
+            }
+        }
+    }
+    if (normalCaptureRight != 0UL) {
+        var (lsb, index) = lsb(normalCaptureRight)
+        while (lsb != 0UL) {
+            moves.add(Move(from = index - forwardOffset - 1, to = index, type = Move.CAPTURE))
+
+            normalCaptureRight = normalCaptureRight xor lsb
+            with(lsb(normalCaptureRight)) {
+                lsb = first
+                index = second
+            }
         }
     }
 
 //    Promo push
-    var (promoLsb, promoIndex) = lsb(promoPawns)
-    while (promoLsb != 0UL) {
-        moves.add(
-            Move(
-                from = promoIndex - forwardOffset,
-                to = promoIndex,
-                type = Move.N_PROMOTE,
-            ),
-        )
-        moves.add(
-            Move(
-                from = promoIndex - forwardOffset,
-                to = promoIndex,
-                type = Move.B_PROMOTE,
-            ),
-        )
-        moves.add(
-            Move(
-                from = promoIndex - forwardOffset,
-                to = promoIndex,
-                type = Move.R_PROMOTE,
-            ),
-        )
-        moves.add(
-            Move(
-                from = promoIndex - forwardOffset,
-                to = promoIndex,
-                type = Move.Q_PROMOTE,
-            ),
-        )
+    if (promoPawns != 0UL) {
+        var (lsb, index) = lsb(promoPawns)
+        while (lsb != 0UL) {
+            generatePromotions(
+                moves = moves,
+                from = index - forwardOffset,
+                to = index,
+                isCapture = false,
+            )
 
-        promoPawns = promoPawns xor promoLsb
-        with(lsb(promoPawns)) {
-            promoLsb = first
-            promoIndex = second
+            promoPawns = promoPawns xor lsb
+            with(lsb(promoPawns)) {
+                lsb = first
+                index = second
+            }
         }
     }
+
+//    Promo capture
+    if (promoCaptureLeft != 0UL) {
+        var (lsb, index) = lsb(promoCaptureLeft)
+        while (lsb != 0UL) {
+            generatePromotions(
+                moves = moves,
+                from = index - forwardOffset + 1,
+                to = index,
+                isCapture = true,
+            )
+
+            promoCaptureLeft = promoCaptureLeft xor lsb
+            with(lsb(promoCaptureLeft)) {
+                lsb = first
+                index = second
+            }
+        }
+    }
+    if (promoCaptureRight != 0UL) {
+        var (lsb, index) = lsb(promoCaptureRight)
+        while (lsb != 0UL) {
+            generatePromotions(
+                moves = moves,
+                from = index - forwardOffset - 1,
+                to = index,
+                isCapture = true,
+            )
+
+            promoCaptureRight = promoCaptureRight xor lsb
+            with(lsb(promoCaptureRight)) {
+                lsb = first
+                index = second
+            }
+        }
+    }
+
+//    TODO: Support en passant
 }
 
 object MoveGen {
