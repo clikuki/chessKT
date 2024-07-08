@@ -1,5 +1,9 @@
-private const val NOT_A_FILE = 0xfefefefefefefefeUL
-private const val NOT_H_FILE = 0x7f7f7f7f7f7f7f7fUL
+const val NOT_A_FILE = 0xfefefefefefefefeUL
+const val NOT_H_FILE = 0x7f7f7f7f7f7f7f7fUL
+const val RANK_1 = 0xff00000000000000UL
+const val RANK_2 = 0xff000000000000UL
+const val RANK_7 = 0xff00UL
+const val RANK_8 = 0xffUL
 
 // PLAIN FILLS
 object Fill {
@@ -172,9 +176,15 @@ object Occl {
 
 // SHIFT BY ONE
 object Shift {
-    fun nort(a: ULong) = a shr 8
+    fun nort(
+        a: ULong,
+        by: Int,
+    ) = a shr (8 * by)
 
-    fun sout(a: ULong) = a shl 8
+    fun sout(
+        a: ULong,
+        by: Int,
+    ) = a shl (8 * by)
 
     fun west(a: ULong) = (a shr 1) and NOT_H_FILE
 
