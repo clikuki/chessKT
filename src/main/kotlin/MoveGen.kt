@@ -5,6 +5,8 @@ private fun generateOrthogonalMoves(
     moves: MutableList<Move>,
 ) {
     var sliders = board.getQueenBB() or board.getRookBB()
+    if (sliders == 0UL) return
+
     val enemy = board.getOpponentBB()
     val friendly = board.getColorBB()
     var (lsb1, from) = lsb(sliders)
@@ -39,6 +41,8 @@ private fun generateDiagonalMoves(
     moves: MutableList<Move>,
 ) {
     var sliders = board.getQueenBB() or board.getBishopBB()
+    if (sliders == 0UL) return
+
     val enemy = board.getOpponentBB()
     val friendly = board.getColorBB()
     var (lsb1, from) = lsb(sliders)
