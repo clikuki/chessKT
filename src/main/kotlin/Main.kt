@@ -19,7 +19,9 @@ fun main() =
             height = 612
         }
         program {
-            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
+//            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
+//            val board = Board.from("8/8/8/3Qq3/3Rr3/3Bb3/8/8 w KQkq - 0 1")
+            val board = Board.from("8/8/8/3Qq3/8/8/8/8 w KQkq - 0 1")
             val moveStack = ArrayDeque<Move>()
             var validMoves = MoveGen.pseudoLegal(board)
 
@@ -106,17 +108,15 @@ fun main() =
             mouse.buttonUp.listen { e ->
                 if (pcMoveIndex != null && isWithinBoard(e.position)) {
                     val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
-                    if (pcMoveIndex!! != toIndex && validMoves.any { it.from == pcMoveIndex!! && it.to == toIndex }) {
-                        val move =
-                            Move(
-                                from = pcMoveIndex!!,
-                                to = toIndex,
-                                isEnpassant = false,
-                                castling = 0,
-                            )
-                        board.makeMove(move)
-                        moveStack.add(move)
-                        validMoves = MoveGen.pseudoLegal(board)
+                    if (pcMoveIndex!! != toIndex) {
+                        mvLoop@for (move in validMoves) {
+//                            TODO: Update for special move types, ie. castling
+                            if (move.from != pcMoveIndex!! || move.to != toIndex) continue
+                            board.makeMove(move)
+                            moveStack.add(move)
+                            validMoves = MoveGen.pseudoLegal(board)
+                            break@mvLoop
+                        }
                     }
                 }
 
@@ -153,9 +153,9 @@ fun main() =
 
 //                        Draw bit clr from bitboard
                         if (settings.displayBitboards) {
-                            val mask = 1L shl index
+                            val mask = 1UL shl index
                             for ((bb, clr) in bitboardTrackers) {
-                                if (bb() and mask != 0L) {
+                                if (bb() and mask != 0UL) {
                                     drawer.fill = clr
                                     drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
                                 }

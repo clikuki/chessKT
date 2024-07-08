@@ -49,14 +49,14 @@ class Board {
 
     val bitboards =
         mutableMapOf(
-            Piece.PAWN to 0L,
-            Piece.BISHOP to 0L,
-            Piece.KNIGHT to 0L,
-            Piece.ROOK to 0L,
-            Piece.QUEEN to 0L,
-            Piece.KING to 0L,
-            Piece.WHITE to 0L,
-            Piece.BLACK to 0L,
+            Piece.PAWN to 0UL,
+            Piece.BISHOP to 0UL,
+            Piece.KNIGHT to 0UL,
+            Piece.ROOK to 0UL,
+            Piece.QUEEN to 0UL,
+            Piece.KING to 0UL,
+            Piece.WHITE to 0UL,
+            Piece.BLACK to 0UL,
         )
     var pawnBB
         get() = bitboards[Piece.PAWN]!!
@@ -142,8 +142,8 @@ class Board {
 
 //        Fix possible bitboard colliding
         val clr = piece and Piece.COLOR
-        val mask = 1L shl i
-        if (occupancyBB and mask != 0L) {
+        val mask = 1UL shl i
+        if (occupancyBB and mask != 0UL) {
             for ((type, bb) in bitboards) {
                 bitboards[type] = (bb xor mask) and bb
             }
@@ -188,8 +188,8 @@ class Board {
 //        Remove captured from BB
         val piece = fullpiece and Piece.TYPE
         val clr = fullpiece and Piece.COLOR
-        val fromMask = (1L shl move.from)
-        val toMask = (1L shl move.to)
+        val fromMask = (1UL shl move.from)
+        val toMask = (1UL shl move.to)
         if (move.type xor 2 < 2) {
 //            Update rooks grid and bitboards
             val rookFromIndex = move.to + (if (move.type xor 2 == (0).b) 1 else -2)
@@ -197,8 +197,8 @@ class Board {
             grid[rookToIndex] = grid[rookFromIndex]
             grid[rookFromIndex] = Piece.NONE
 
-            val rookFromMask = (1L shl rookFromIndex)
-            val rookToMask = (1L shl rookToIndex)
+            val rookFromMask = (1UL shl rookFromIndex)
+            val rookToMask = (1UL shl rookToIndex)
             rookBB = rookBB xor rookFromMask or rookToMask
             bitboards[clr] = bitboards[clr]!! xor rookFromMask or rookToMask
 
@@ -272,8 +272,8 @@ class Board {
         ] = fullCaptured
 
 //        Update pc position in BB
-        val fromMask = (1L shl move.from)
-        val toMask = (1L shl move.to)
+        val fromMask = (1UL shl move.from)
+        val toMask = (1UL shl move.to)
         val piece = fullpiece and Piece.TYPE
         val clr = fullpiece and Piece.COLOR
         bitboards[piece] = bitboards[piece]!! or fromMask xor toMask
@@ -287,8 +287,8 @@ class Board {
             grid[rookFromIndex] = grid[rookToIndex]
             grid[rookToIndex] = Piece.NONE
 
-            val rookFromMask = (1L shl rookFromIndex)
-            val rookToMask = (1L shl rookToIndex)
+            val rookFromMask = (1UL shl rookFromIndex)
+            val rookToMask = (1UL shl rookToIndex)
             rookBB = rookBB xor rookToMask or rookFromMask
             bitboards[clr] = bitboards[clr]!! xor rookToMask or rookFromMask
         } else if (fullCaptured != Piece.NONE) {
