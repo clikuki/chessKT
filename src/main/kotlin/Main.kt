@@ -20,8 +20,8 @@ fun main() =
         }
         program {
 //            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
-//            val board = Board.from("8/8/8/3Qq3/3Rr3/3Bb3/8/8 w KQkq - 0 1")
-            val board = Board.from("8/8/8/3Qq3/8/8/8/8 w KQkq - 0 1")
+            val board = Board.from("8/3pP3/8/8/3Qq3/8/3Pp3/8 w KQkq - 0 1")
+//            val board = Board.from("8/8/8/8/3Qq3/8/8/8 w KQkq - 0 1")
             val moveStack = ArrayDeque<Move>()
             var validMoves = MoveGen.pseudoLegal(board)
 

@@ -115,7 +115,7 @@ class Board {
 
     fun getColorBB(color: Byte = side) = if (color == Piece.WHITE) whiteBB else blackBB
 
-    fun getOpponentBB(color: Byte = side) = if (color == Piece.WHITE) whiteBB else blackBB
+    fun getOpponentBB(color: Byte = side) = if (color == Piece.WHITE) blackBB else whiteBB
 
     fun getPawnBB(color: Byte = side) = if (color == Piece.WHITE) whitePawnBB else blackPawnBB
 
