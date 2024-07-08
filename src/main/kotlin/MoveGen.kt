@@ -102,7 +102,7 @@ private fun generatePawnMoves(
             Move(
                 from = dblIndex - forwardOffset - forwardOffset,
                 to = dblIndex,
-                type = Move.types["dbl p push"]!!,
+                type = Move.DBL_PUSH,
             ),
         )
 
@@ -120,28 +120,28 @@ private fun generatePawnMoves(
             Move(
                 from = promoIndex - forwardOffset,
                 to = promoIndex,
-                type = Move.types["n promote"]!!,
+                type = Move.N_PROMOTE,
             ),
         )
         moves.add(
             Move(
                 from = promoIndex - forwardOffset,
                 to = promoIndex,
-                type = Move.types["b promote"]!!,
+                type = Move.B_PROMOTE,
             ),
         )
         moves.add(
             Move(
                 from = promoIndex - forwardOffset,
                 to = promoIndex,
-                type = Move.types["r promote"]!!,
+                type = Move.R_PROMOTE,
             ),
         )
         moves.add(
             Move(
                 from = promoIndex - forwardOffset,
                 to = promoIndex,
-                type = Move.types["q promote"]!!,
+                type = Move.Q_PROMOTE,
             ),
         )
 

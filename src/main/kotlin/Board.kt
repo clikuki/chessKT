@@ -11,23 +11,20 @@ data class Move(
     val type: Byte,
 ) {
     companion object {
-        val types =
-            mapOf<String, Byte>(
-                "quiet" to 0b0000,
-                "dbl p push" to 0b0001,
-                "k castle" to 0b0010,
-                "q castle" to 0b0011,
-                "capture" to 0b0100,
-                "ep-capture" to 0b0101,
-                "n promote" to 0b1000,
-                "b promote" to 0b1001,
-                "r promote" to 0b1010,
-                "q promote" to 0b1011,
-                "n promo capture" to 0b1100,
-                "b promo capture" to 0b1101,
-                "r promo capture" to 0b1110,
-                "q promo capture" to 0b1111,
-            )
+        const val QUIET: Byte = 0b0000
+        const val DBL_PUSH: Byte = 0b0001
+        const val K_CASTLE: Byte = 0b0010
+        const val Q_CASTLE: Byte = 0b0011
+        const val CAPTURE: Byte = 0b0100
+        const val EP_CAPTURE: Byte = 0b0101
+        const val N_PROMOTE: Byte = 0b1000
+        const val B_PROMOTE: Byte = 0b1001
+        const val R_PROMOTE: Byte = 0b1010
+        const val Q_PROMOTE: Byte = 0b1011
+        const val N_PROMO_CAPTURE: Byte = 0b1100
+        const val B_PROMO_CAPTURE: Byte = 0b1101
+        const val R_PROMO_CAPTURE: Byte = 0b1110
+        const val Q_PROMO_CAPTURE: Byte = 0b1111
     }
 }
 
@@ -167,7 +164,7 @@ class Board {
 
     fun makeMove(move: Move) {
         val fullpiece = grid[move.from]
-        val fullCaptured = if (move.type == Move.types["ep-capture"]) grid[enpassantTarget] else grid[move.to]
+        val fullCaptured = if (move.type == Move.EP_CAPTURE) grid[enpassantTarget] else grid[move.to]
         unmoveStack.push(
             Unmove(
                 captured = fullCaptured,
@@ -180,7 +177,7 @@ class Board {
 //        Update grid
         grid[move.from] = Piece.NONE
         grid[move.to] = fullpiece
-        if (move.type == Move.types["ep-capture"]) {
+        if (move.type == Move.EP_CAPTURE) {
             grid[enpassantTarget] = Piece.NONE
             enpassantTarget = -1
         }
@@ -268,7 +265,7 @@ class Board {
 //        Update grid
         grid[move.from] = fullpiece
         grid[
-            if (move.type == Move.types["ep-capture"]) unmove.prevEnpassant else move.to,
+            if (move.type == Move.EP_CAPTURE) unmove.prevEnpassant else move.to,
         ] = fullCaptured
 
 //        Update pc position in BB
