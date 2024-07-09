@@ -33,14 +33,15 @@ val knightAttacks =
 
 val kingAttacks =
     buildMap {
+        val notRank1 = RANK_1.inv()
         val notRank8 = RANK_8.inv()
 
         for (y in 0..7) {
             for (x in 0..7) {
                 val i = y * 8 + x
-                var attacks = 1UL shl (i - 9) and NOT_H_FILE
-                attacks = attacks or (1UL shl (i - 8))
-                attacks = attacks or (1UL shl (i - 7) and NOT_A_FILE)
+                var attacks = 1UL shl (i - 9) and NOT_H_FILE and notRank1
+                attacks = attacks or (1UL shl (i - 8)) and notRank1
+                attacks = attacks or (1UL shl (i - 7) and NOT_A_FILE) and notRank1
                 attacks = attacks or (1UL shl (i - 1) and NOT_H_FILE)
                 attacks = attacks or (1UL shl (i + 1) and NOT_A_FILE)
                 attacks = attacks or (1UL shl (i + 7) and notRank8 and NOT_H_FILE)
