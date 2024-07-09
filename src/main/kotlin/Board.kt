@@ -250,6 +250,10 @@ class Board {
             side = Piece.WHITE
             fullMoveCounter++
         }
+
+        if (move.type == Move.DBL_PUSH) {
+            enpassantTarget = move.to
+        }
     }
 
     fun unmakeMove(move: Move) {

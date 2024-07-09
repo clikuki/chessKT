@@ -227,7 +227,17 @@ private fun generatePawnMoves(
         }
     }
 
-//    TODO: Support en passant
+    if (board.enpassantTarget != -1) {
+        val leftPawn = board.enpassantTarget - 1
+        val rightPawn = board.enpassantTarget + 1
+        val to = board.enpassantTarget + forwardOffset
+        if ((pawns shr leftPawn) and 1UL == 1UL) {
+            moves.add(Move(leftPawn, to, type = Move.EP_CAPTURE))
+        }
+        if ((pawns shr rightPawn) and 1UL == 1UL) {
+            moves.add(Move(rightPawn, to, type = Move.EP_CAPTURE))
+        }
+    }
 }
 
 private fun generateKnightMoves(
