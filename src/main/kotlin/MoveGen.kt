@@ -1,3 +1,5 @@
+import kotlin.experimental.and
+
 fun lsb(bb: ULong) = bb.takeLowestOneBit().let { it to it.countTrailingZeroBits() }
 
 private fun generateOrthogonalMoves(
@@ -265,12 +267,12 @@ private fun generateKingMoves(
     moves: MutableList<Move>,
 ) {
     val king = board.getKingBB()
-    val nonblockers = board.getColorBB().inv()
+    val blockers = board.getColorBB()
     val opp = board.getOpponentBB()
     val (_, from) = lsb(king)
 
 //    Normal move
-    var attacks = kingAttacks[from]!! and nonblockers
+    var attacks = kingAttacks[from]!! and blockers.inv()
     if (attacks != 0UL) {
         var (lsb, to) = lsb(attacks)
         while (lsb != 0UL) {
@@ -286,7 +288,23 @@ private fun generateKingMoves(
     }
 
 //    Castling
-//    TODO: Add castling
+    if (board.castlingRights != 0.b) {
+        val isWhite = board.side == Piece.WHITE
+        val backrank = if (isWhite) RANK_1 else RANK_8
+        val sideMask: Byte = if (isWhite) 0b1100 else 0b0011
+        if (
+            board.castlingRights and sideMask and 0b0101 != 0.b &&
+            backrank and K_CASTLE_CHECK and blockers == 0UL
+        ) {
+            moves.add(Move(from, to = from + 2, type = Move.K_CASTLE))
+        }
+        if (
+            board.castlingRights and sideMask and 0b1010 != 0.b &&
+            backrank and Q_CASTLE_CHECK and blockers == 0UL
+        ) {
+            moves.add(Move(from, to = from - 2, type = Move.Q_CASTLE))
+        }
+    }
 }
 
 object MoveGen {
