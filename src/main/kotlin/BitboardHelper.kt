@@ -9,16 +9,18 @@ val knightAttacks =
     buildMap {
         val notGHfiles = NOT_H_FILE and (NOT_H_FILE shr 1)
         val notABfiles = NOT_A_FILE and (NOT_A_FILE shl 1)
+        val notRank8 = RANK_8.inv()
+        val notRanks8or7 = (RANK_8 or RANK_7).inv()
 
         for (y in 0..7) {
             for (x in 0..7) {
                 val i = y * 8 + x
-                var attacks = 1UL shl (i + 10) and notABfiles
-                attacks = attacks or (1UL shl (i + 17) and NOT_A_FILE)
+                var attacks = 1UL shl (i + 10) and notABfiles and notRank8
+                attacks = attacks or (1UL shl (i + 17) and NOT_A_FILE and notRanks8or7)
                 attacks = attacks or (((1UL shl i) shr 6) and notABfiles)
                 attacks = attacks or (((1UL shl i) shr 15) and NOT_A_FILE)
-                attacks = attacks or (1UL shl (i + 6) and notGHfiles)
-                attacks = attacks or (1UL shl (i + 15) and NOT_H_FILE)
+                attacks = attacks or (1UL shl (i + 15) and NOT_H_FILE and notRanks8or7)
+                attacks = attacks or (1UL shl (i + 6) and notGHfiles and notRank8)
                 attacks = attacks or (((1UL shl i) shr 10) and notGHfiles)
                 attacks = attacks or (((1UL shl i) shr 17) and NOT_H_FILE)
 
