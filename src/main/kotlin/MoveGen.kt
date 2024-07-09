@@ -260,9 +260,39 @@ private fun generateKnightMoves(
     }
 }
 
+private fun generateKingMoves(
+    board: Board,
+    moves: MutableList<Move>,
+) {
+    val king = board.getKingBB()
+    val nonblockers = board.getColorBB().inv()
+    val opp = board.getOpponentBB()
+    val (_, from) = lsb(king)
+
+//    Normal move
+    var attacks = kingAttacks[from]!! and nonblockers
+    if (attacks != 0UL) {
+        var (lsb, to) = lsb(attacks)
+        while (lsb != 0UL) {
+            val type = if (lsb and opp != 0UL) Move.CAPTURE else Move.QUIET
+            moves.add(Move(from, to, type))
+
+            attacks = attacks xor lsb
+            with(lsb(attacks)) {
+                lsb = first
+                to = second
+            }
+        }
+    }
+
+//    Castling
+//    TODO: Add castling
+}
+
 object MoveGen {
     fun pseudoLegal(board: Board): List<Move> {
         val moves = mutableListOf<Move>()
+        generateKingMoves(board, moves)
         generateOrthogonalMoves(board, moves)
         generateDiagonalMoves(board, moves)
         generatePawnMoves(board, moves)
