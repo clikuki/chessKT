@@ -19,7 +19,7 @@ private fun generateOrthogonalMoves(
 
         var (lsb2, to) = lsb(rays)
         while (rays != 0UL) {
-            moves.add(Move(from, to, type = 0))
+            moves.add(Move(from, to, type = Move.QUIET))
 
             rays = rays xor lsb2
             with(lsb(rays)) {
@@ -54,7 +54,7 @@ private fun generateDiagonalMoves(
         var rays = (noWe or noEa or soWe or soEa) xor lsb1
         var (lsb2, to) = lsb(rays)
         while (rays != 0UL) {
-            moves.add(Move(from, to, type = 0))
+            moves.add(Move(from, to, type = Move.QUIET))
 
             rays = rays xor lsb2
             with(lsb(rays)) {
@@ -114,7 +114,7 @@ private fun generatePawnMoves(
     if (normalPawns != 0UL) {
         var (lsb, index) = lsb(normalPawns)
         while (lsb != 0UL) {
-            moves.add(Move(from = index - forwardOffset, to = index, type = 0))
+            moves.add(Move(from = index - forwardOffset, to = index, type = Move.QUIET))
 
             normalPawns = normalPawns xor lsb
             with(lsb(normalPawns)) {
@@ -228,12 +228,45 @@ private fun generatePawnMoves(
 //    TODO: Support en passant
 }
 
+private fun generateKnightMoves(
+    board: Board,
+    moves: MutableList<Move>,
+) {
+    var knights = board.getKnightBB()
+    val nonblockers = board.getColorBB().inv()
+    val opp = board.getOpponentBB()
+    if (knights != 0UL) {
+        var (lsb1, from) = lsb(knights)
+        while (lsb1 != 0UL) {
+            var attacks = knightAttacks[from]!! and nonblockers
+            var (lsb2, to) = lsb(attacks)
+            while (lsb2 != 0UL) {
+                val type = if (lsb2 and opp != 0UL) Move.CAPTURE else Move.QUIET
+                moves.add(Move(from, to, type))
+
+                attacks = attacks xor lsb2
+                with(lsb(attacks)) {
+                    lsb2 = first
+                    to = second
+                }
+            }
+
+            knights = knights xor lsb1
+            with(lsb(knights)) {
+                lsb1 = first
+                from = second
+            }
+        }
+    }
+}
+
 object MoveGen {
     fun pseudoLegal(board: Board): List<Move> {
         val moves = mutableListOf<Move>()
         generateOrthogonalMoves(board, moves)
         generateDiagonalMoves(board, moves)
         generatePawnMoves(board, moves)
+        generateKnightMoves(board, moves)
         return moves
     }
 }

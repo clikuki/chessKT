@@ -5,6 +5,28 @@ const val RANK_2 = 0xff000000000000UL
 const val RANK_7 = 0xff00UL
 const val RANK_8 = 0xffUL
 
+val knightAttacks =
+    buildMap {
+        val notGHfiles = NOT_H_FILE and (NOT_H_FILE shr 1)
+        val notABfiles = NOT_A_FILE and (NOT_A_FILE shl 1)
+
+        for (y in 0..7) {
+            for (x in 0..7) {
+                val i = y * 8 + x
+                var attacks = 1UL shl (i + 10) and notABfiles
+                attacks = attacks or (1UL shl (i + 17) and NOT_A_FILE)
+                attacks = attacks or (((1UL shl i) shr 6) and notABfiles)
+                attacks = attacks or (((1UL shl i) shr 15) and NOT_A_FILE)
+                attacks = attacks or (1UL shl (i + 6) and notGHfiles)
+                attacks = attacks or (1UL shl (i + 15) and NOT_H_FILE)
+                attacks = attacks or (((1UL shl i) shr 10) and notGHfiles)
+                attacks = attacks or (((1UL shl i) shr 17) and NOT_H_FILE)
+
+                set(i, attacks)
+            }
+        }
+    }
+
 // PLAIN FILLS
 object Fill {
     fun south(a: ULong): ULong {
