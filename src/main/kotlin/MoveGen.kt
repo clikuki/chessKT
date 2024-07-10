@@ -270,7 +270,7 @@ private fun generateKingMoves(
     val (_, from) = lsb(king)
 
 //    Normal move
-    var attacks = kingAttacks[from]!! and data.emptySqrs
+    var attacks = kingAttacks[from]!! and data.emptyOrOppSqrs and data.oppNoAttack
     if (attacks != 0UL) {
         var (lsb, to) = lsb(attacks)
         while (lsb != 0UL) {
@@ -292,17 +292,28 @@ private fun generateKingMoves(
         val sideMask: Byte = if (isWhite) 0b1100 else 0b0011
         if (
             data.board.castlingRights and sideMask and 0b0101 != 0.b &&
-            backrank and K_CASTLE_CHECK and data.ownPieces == 0UL
+            backrank and K_CASTLE_CHECK and (data.ownPieces or data.oppAttacks) == 0UL
         ) {
             moves.add(Move(from, to = from + 2, type = Move.K_CASTLE))
         }
         if (
             data.board.castlingRights and sideMask and 0b1010 != 0.b &&
-            backrank and Q_CASTLE_CHECK and data.ownPieces == 0UL
+            backrank and Q_CASTLE_CHECK and (data.ownPieces or data.oppAttacks) == 0UL
         ) {
             moves.add(Move(from, to = from - 2, type = Move.Q_CASTLE))
         }
     }
+}
+
+fun knightAttacks(knights: ULong): ULong {
+    var east = Shift.east(knights)
+    var west = Shift.west(knights)
+    var attacks = east or west shl 16
+    attacks = attacks or ((east or west) shr 16)
+    east = Shift.east(east)
+    west = Shift.west(west)
+    attacks = attacks or ((east or west) shl 8)
+    return attacks or ((east or west) shr 8)
 }
 
 data class MoveGenData(
@@ -313,30 +324,90 @@ data class MoveGenData(
     var checkRayBitmask = 0UL
     var pinRays = 0UL
 
-    // Store some info for convenience
-    val isWhite = board.side == Piece.WHITE
-    val ownClr = board.side
-    val oppClr = if (isWhite) Piece.BLACK else Piece.WHITE
-    val ownKingSqr = lsb(board.getKingBB()).second
+    var isWhite = false
+    var ownClr: Byte = 0
+    var oppClr: Byte = 0
+    var ownKingMask = 0UL
+    var ownKingSqr = 0
+    var oppKingMask = 0UL
+    var oppKingSqr = 0
 
-    // Store some bitboards for convenience
-    val oppPieces = board.getOpponentBB()
-    val ownPieces = board.getColorBB()
-    val allPieces = board.occupancyBB
-    val emptySqrs = allPieces.inv()
-    val emptyOrOppSqrs = emptySqrs or oppPieces
+    var oppPieces = 0UL
+    var ownPieces = 0UL
+    var allPieces = 0UL
+    var emptySqrs = 0UL
+    var emptyOrOppSqrs = 0UL
+
+    var oppAttacks = 0UL
+    var oppNoAttack = 0UL
+
+    init {
+        update()
+    }
+
+    fun update() {
+        inCheck = false
+        inDoubleCheck = false
+        checkRayBitmask = 0xffffffffffffffffUL
+        pinRays = 0UL
+
+        isWhite = board.side == Piece.WHITE
+        ownClr = board.side
+        oppClr = if (isWhite) Piece.BLACK else Piece.WHITE
+        ownKingMask = board.getKingBB()
+        ownKingSqr = ownKingMask.countTrailingZeroBits()
+        oppKingMask = board.getKingBB(oppClr)
+        oppKingSqr = oppKingMask.countTrailingZeroBits()
+
+        oppPieces = board.getOpponentBB()
+        ownPieces = board.getColorBB()
+        allPieces = board.occupancyBB
+        emptySqrs = allPieces.inv()
+        emptyOrOppSqrs = emptySqrs or oppPieces
+
+        generateOppAttacks()
+    }
+
+    private fun generateOppAttacks() {
+        val noKing = emptySqrs or ownKingMask
+        val orthoSliders = (board.getQueenBB(oppClr) or board.getRookBB(oppClr))
+        val diagonalSliders = (board.getQueenBB(oppClr) or board.getBishopBB(oppClr))
+        val pawns = board.getPawnBB(oppClr)
+        val left = if (isWhite) Shift::soWe else Shift::noWe
+        val right = if (isWhite) Shift::soEa else Shift::noEa
+
+        oppAttacks = Shift.nort(Occl.nort(orthoSliders, noKing), 1)
+        oppAttacks = oppAttacks or (Shift.sout(Occl.sout(orthoSliders, noKing), 1))
+        oppAttacks = oppAttacks or (Shift.west(Occl.west(orthoSliders, noKing)))
+        oppAttacks = oppAttacks or (Shift.east(Occl.east(orthoSliders, noKing)))
+
+        oppAttacks = oppAttacks or (Shift.noWe(Occl.noWe(diagonalSliders, noKing)))
+        oppAttacks = oppAttacks or (Shift.noEa(Occl.noEa(diagonalSliders, noKing)))
+        oppAttacks = oppAttacks or (Shift.soWe(Occl.soWe(diagonalSliders, noKing)))
+        oppAttacks = oppAttacks or (Shift.soEa(Occl.soEa(diagonalSliders, noKing)))
+
+        oppAttacks = oppAttacks or knightAttacks(board.getKnightBB(oppClr))
+        oppAttacks = oppAttacks or kingAttacks[oppKingSqr]!!
+        oppAttacks = oppAttacks or left(pawns) or right(pawns)
+
+        oppNoAttack = oppAttacks.inv()
+    }
 }
 
-object MoveGen {
-    fun generateMoves(board: Board): List<Move> {
-        val moves = mutableListOf<Move>()
-        val moveGenData = MoveGenData(board)
+class MoveGen(
+    board: Board,
+) {
+    val data: MoveGenData = MoveGenData(board)
 
-        generateKingMoves(moves, moveGenData)
-        generateOrthogonalMoves(moves, moveGenData)
-        generateDiagonalMoves(moves, moveGenData)
-        generatePawnMoves(moves, moveGenData)
-        generateKnightMoves(moves, moveGenData)
+    fun generateMoves(): List<Move> {
+        val moves = mutableListOf<Move>()
+        data.update()
+
+        generateKingMoves(moves, data)
+        generateOrthogonalMoves(moves, data)
+        generateDiagonalMoves(moves, data)
+        generatePawnMoves(moves, data)
+        generateKnightMoves(moves, data)
 
         return moves
     }
