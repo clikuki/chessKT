@@ -179,12 +179,13 @@ class Board {
         grid[move.to] = fullpiece
         if (move.type == Move.EP_CAPTURE) {
             grid[enpassantTarget] = Piece.NONE
-            enpassantTarget = -1
         }
 
 //        Remove captured from BB
-        val piece = fullpiece and Piece.TYPE
-        val clr = fullpiece and Piece.COLOR
+        val ownPiece = fullpiece and Piece.TYPE
+        val ownClr = fullpiece and Piece.COLOR
+        val oppPiece = fullCaptured and Piece.TYPE
+        val oppClr = fullCaptured and Piece.COLOR
         val fromMask = (1UL shl move.from)
         val toMask = (1UL shl move.to)
         if (move.type xor 2 < 2) {
@@ -197,27 +198,30 @@ class Board {
             val rookFromMask = (1UL shl rookFromIndex)
             val rookToMask = (1UL shl rookToIndex)
             rookBB = rookBB xor rookFromMask or rookToMask
-            bitboards[clr] = bitboards[clr]!! xor rookFromMask or rookToMask
+            bitboards[ownClr] = bitboards[ownClr]!! xor rookFromMask or rookToMask
 
 //            Update castling rights
-            var shiftBy = if (clr == Piece.WHITE) 2 else 0
+            var shiftBy = if (ownClr == Piece.WHITE) 2 else 0
             if (move.type and (1).b != (0).b) shiftBy += 1
             castlingRights = castlingRights xor (1 shl shiftBy).toByte()
+        } else if (move.type == Move.EP_CAPTURE) {
+//            Remove ep piece
+            val epMask = 1UL shl enpassantTarget
+            bitboards[oppPiece] = bitboards[oppPiece]!! xor epMask
+            bitboards[oppClr] = bitboards[oppClr]!! xor epMask
         } else if (fullCaptured != Piece.NONE) {
 //            Remove captured piece
-            val capturedPiece = fullCaptured and Piece.TYPE
-            val capturedClr = fullCaptured and Piece.COLOR
-            bitboards[capturedPiece] = bitboards[capturedPiece]!! xor toMask
-            bitboards[capturedClr] = bitboards[capturedClr]!! xor toMask
+            bitboards[oppPiece] = bitboards[oppPiece]!! xor toMask
+            bitboards[oppClr] = bitboards[oppClr]!! xor toMask
         }
 
 //        Update castling rights for king/rook moves
-        if (piece == Piece.KING) {
-            castlingRights = castlingRights and if (clr == Piece.WHITE) 0b0011 else 0b1100
-        } else if (piece == Piece.ROOK) {
+        if (ownPiece == Piece.KING) {
+            castlingRights = castlingRights and if (ownClr == Piece.WHITE) 0b0011 else 0b1100
+        } else if (ownPiece == Piece.ROOK) {
             val xFrom = move.from % 8
             if (xFrom !in 1..6) {
-                var shiftBy = if (clr == Piece.BLACK) 0 else 2
+                var shiftBy = if (ownClr == Piece.BLACK) 0 else 2
                 if (xFrom == 0) shiftBy += 1
                 castlingRights = castlingRights xor (1 shl shiftBy).toByte()
             }
@@ -235,10 +239,10 @@ class Board {
         }
 
 //        Update pc position in BB
-        bitboards[piece] = bitboards[piece]!! or toMask xor fromMask
-        bitboards[clr] = bitboards[clr]!! or toMask xor fromMask
+        bitboards[ownPiece] = bitboards[ownPiece]!! or toMask xor fromMask
+        bitboards[ownClr] = bitboards[ownClr]!! or toMask xor fromMask
 
-        if (piece == Piece.PAWN || fullCaptured != Piece.NONE) {
+        if (ownPiece == Piece.PAWN || fullCaptured != Piece.NONE) {
             halfMoveClock = 0
         } else {
             halfMoveClock++
@@ -251,9 +255,12 @@ class Board {
             fullMoveCounter++
         }
 
-        if (move.type == Move.DBL_PUSH) {
-            enpassantTarget = move.to
-        }
+        enpassantTarget =
+            if (move.type == Move.DBL_PUSH) {
+                move.to
+            } else {
+                -1
+            }
     }
 
     fun unmakeMove(move: Move) {
@@ -268,19 +275,24 @@ class Board {
 
 //        Update grid
         grid[move.from] = fullpiece
-        grid[
-            if (move.type == Move.EP_CAPTURE) unmove.prevEnpassant else move.to,
-        ] = fullCaptured
+        if (move.type == Move.EP_CAPTURE) {
+            grid[unmove.prevEnpassant] = fullCaptured
+            grid[move.to] = Piece.NONE
+        } else {
+            grid[move.to] = fullCaptured
+        }
 
 //        Update pc position in BB
+        val ownPiece = fullpiece and Piece.TYPE
+        val ownClr = fullpiece and Piece.COLOR
+        val oppPiece = fullCaptured and Piece.TYPE
+        val oppClr = fullCaptured and Piece.COLOR
         val fromMask = (1UL shl move.from)
         val toMask = (1UL shl move.to)
-        val piece = fullpiece and Piece.TYPE
-        val clr = fullpiece and Piece.COLOR
-        bitboards[piece] = bitboards[piece]!! or fromMask xor toMask
-        bitboards[clr] = bitboards[clr]!! or fromMask xor toMask
+        bitboards[ownPiece] = bitboards[ownPiece]!! or fromMask xor toMask
+        bitboards[ownClr] = bitboards[ownClr]!! or fromMask xor toMask
 
-//        Remove captured from BB
+//        Re-add captured from BB
         if (move.type xor 2 < 2) {
 //            Update rooks for castling
             val rookFromIndex = move.to + (if (move.type xor 2 == (0).b) 1 else -2)
@@ -291,12 +303,15 @@ class Board {
             val rookFromMask = (1UL shl rookFromIndex)
             val rookToMask = (1UL shl rookToIndex)
             rookBB = rookBB xor rookToMask or rookFromMask
-            bitboards[clr] = bitboards[clr]!! xor rookToMask or rookFromMask
+            bitboards[ownClr] = bitboards[ownClr]!! xor rookToMask or rookFromMask
+        } else if (move.type == Move.EP_CAPTURE) {
+//            Return ep piece
+            val epMask = 1UL shl enpassantTarget
+            bitboards[oppPiece] = bitboards[oppPiece]!! or epMask
+            bitboards[oppClr] = bitboards[oppClr]!! or epMask
         } else if (fullCaptured != Piece.NONE) {
-            val capturedPiece = fullCaptured and Piece.TYPE
-            val capturedClr = fullCaptured and Piece.COLOR
-            bitboards[capturedPiece] = bitboards[capturedPiece]!! or toMask
-            bitboards[capturedClr] = bitboards[capturedClr]!! or toMask
+            bitboards[oppPiece] = bitboards[oppPiece]!! or toMask
+            bitboards[oppClr] = bitboards[oppClr]!! or toMask
         }
 
         if (side == Piece.WHITE) {
