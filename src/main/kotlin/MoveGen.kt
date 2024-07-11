@@ -394,6 +394,8 @@ data class MoveGenData(
     var safeSqrs = 0UL
     var checkers = 0UL
     var moveMask = 0UL
+    var orthoPins = 0UL
+    var diagonalPins = 0UL
 
     init {
         update()
@@ -417,6 +419,8 @@ data class MoveGenData(
         emptySqrs = allPieces.inv()
         emptyOrOppSqrs = emptySqrs or oppPieces
         moveMask = 0xffffffffffffffffUL
+        orthoPins = 0UL
+        diagonalPins = 0UL
 
         generateOppAttacks()
     }
@@ -446,6 +450,7 @@ data class MoveGenData(
         safeSqrs = attackedSqrs.inv()
         inCheck = attackedSqrs and ownKingMask != 0UL
 
+//        Checkers and rays calculation
         if (inCheck) {
             checkers = knightAttacks[ownKingSqr]!! and knights
             checkers = checkers or ((left(ownKingMask) or right(ownKingMask)) and pawns)
@@ -491,6 +496,29 @@ data class MoveGenData(
                             else -> throw Error("IMPOSSIBLE STATE")
                         }
                     }
+            }
+        }
+
+//        Pin calculations
+        if (!inDoubleCheck) {
+//            Not sure if this is efficient ...
+            listOf(
+                Triple(Rays::nort, orthoSliders, ::orthoPins),
+                Triple(Rays::sout, orthoSliders, ::orthoPins),
+                Triple(Rays::west, orthoSliders, ::orthoPins),
+                Triple(Rays::east, orthoSliders, ::orthoPins),
+                Triple(Rays::noWe, diagonalSliders, ::diagonalPins),
+                Triple(Rays::noEa, diagonalSliders, ::diagonalPins),
+                Triple(Rays::soWe, diagonalSliders, ::diagonalPins),
+                Triple(Rays::soEa, diagonalSliders, ::diagonalPins),
+            ).forEach { (fill, sliders, pinMask) ->
+                val pc = fill(ownKingMask, emptySqrs) and ownPieces
+                if (pc == 0UL) return@forEach
+
+                val ray = fill(ownKingMask, emptySqrs or pc)
+                if (sliders and ray == 0UL) return@forEach
+
+                pinMask.set(pinMask() or ray)
             }
         }
     }
