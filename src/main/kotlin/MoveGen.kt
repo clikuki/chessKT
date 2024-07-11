@@ -2,6 +2,59 @@ import kotlin.experimental.and
 
 fun lsb(bb: ULong) = bb.takeLowestOneBit().let { it to it.countTrailingZeroBits() }
 
+private fun knightFill(knights: ULong): ULong {
+    var east = Shift.east(knights)
+    var west = Shift.west(knights)
+    var attacks = east or west shl 16
+    attacks = attacks or ((east or west) shr 16)
+    east = Shift.east(east)
+    west = Shift.west(west)
+    attacks = attacks or ((east or west) shl 8)
+    return attacks or ((east or west) shr 8)
+}
+
+private object Rays {
+    fun nort(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.nort(Occl.nort(gen, pro), 1)
+
+    fun sout(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.sout(Occl.sout(gen, pro), 1)
+
+    fun west(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.west(Occl.west(gen, pro))
+
+    fun east(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.east(Occl.east(gen, pro))
+
+    fun noWe(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.noWe(Occl.noWe(gen, pro))
+
+    fun noEa(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.noEa(Occl.noEa(gen, pro))
+
+    fun soWe(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.soWe(Occl.soWe(gen, pro))
+
+    fun soEa(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.soEa(Occl.soEa(gen, pro))
+}
+
 private fun generateOrthogonalMoves(
     moves: MutableList<Move>,
     data: MoveGenData,
@@ -270,7 +323,7 @@ private fun generateKingMoves(
     val (_, from) = lsb(king)
 
 //    Normal move
-    var attacks = kingAttacks[from]!! and data.emptyOrOppSqrs and data.oppNoAttack
+    var attacks = kingAttacks[from]!! and data.emptyOrOppSqrs and data.safeSqrs
     if (attacks != 0UL) {
         var (lsb, to) = lsb(attacks)
         while (lsb != 0UL) {
@@ -286,34 +339,23 @@ private fun generateKingMoves(
     }
 
 //    Castling
-    if (data.board.castlingRights != 0.b) {
+    if (!data.inCheck && data.board.castlingRights != 0.b) {
         val isWhite = data.board.side == Piece.WHITE
         val backrank = if (isWhite) RANK_1 else RANK_8
         val sideMask: Byte = if (isWhite) 0b1100 else 0b0011
         if (
             data.board.castlingRights and sideMask and 0b0101 != 0.b &&
-            backrank and K_CASTLE_CHECK and (data.ownPieces or data.oppAttacks) == 0UL
+            backrank and K_CASTLE_CHECK and (data.ownPieces or data.attackedSqrs) == 0UL
         ) {
             moves.add(Move(from, to = from + 2, type = Move.K_CASTLE))
         }
         if (
             data.board.castlingRights and sideMask and 0b1010 != 0.b &&
-            backrank and Q_CASTLE_CHECK and (data.ownPieces or data.oppAttacks) == 0UL
+            backrank and Q_CASTLE_CHECK and (data.ownPieces or data.attackedSqrs) == 0UL
         ) {
             moves.add(Move(from, to = from - 2, type = Move.Q_CASTLE))
         }
     }
-}
-
-fun knightAttacks(knights: ULong): ULong {
-    var east = Shift.east(knights)
-    var west = Shift.west(knights)
-    var attacks = east or west shl 16
-    attacks = attacks or ((east or west) shr 16)
-    east = Shift.east(east)
-    west = Shift.west(west)
-    attacks = attacks or ((east or west) shl 8)
-    return attacks or ((east or west) shr 8)
 }
 
 data class MoveGenData(
@@ -321,8 +363,6 @@ data class MoveGenData(
 ) {
     var inCheck = false
     var inDoubleCheck = false
-    var checkRayBitmask = 0UL
-    var pinRays = 0UL
 
     var isWhite = false
     var ownClr: Byte = 0
@@ -338,8 +378,10 @@ data class MoveGenData(
     var emptySqrs = 0UL
     var emptyOrOppSqrs = 0UL
 
-    var oppAttacks = 0UL
-    var oppNoAttack = 0UL
+    var attackedSqrs = 0UL
+    var safeSqrs = 0UL
+    var attackers = 0UL
+    var moveMask = 0UL
 
     init {
         update()
@@ -348,8 +390,6 @@ data class MoveGenData(
     fun update() {
         inCheck = false
         inDoubleCheck = false
-        checkRayBitmask = 0xffffffffffffffffUL
-        pinRays = 0UL
 
         isWhite = board.side == Piece.WHITE
         ownClr = board.side
@@ -364,6 +404,7 @@ data class MoveGenData(
         allPieces = board.occupancyBB
         emptySqrs = allPieces.inv()
         emptyOrOppSqrs = emptySqrs or oppPieces
+        moveMask = 0xffffffffffffffffUL
 
         generateOppAttacks()
     }
@@ -373,24 +414,71 @@ data class MoveGenData(
         val orthoSliders = (board.getQueenBB(oppClr) or board.getRookBB(oppClr))
         val diagonalSliders = (board.getQueenBB(oppClr) or board.getBishopBB(oppClr))
         val pawns = board.getPawnBB(oppClr)
+        val knights = board.getKnightBB(oppClr)
         val left = if (isWhite) Shift::soWe else Shift::noWe
         val right = if (isWhite) Shift::soEa else Shift::noEa
 
-        oppAttacks = Shift.nort(Occl.nort(orthoSliders, noKing), 1)
-        oppAttacks = oppAttacks or (Shift.sout(Occl.sout(orthoSliders, noKing), 1))
-        oppAttacks = oppAttacks or (Shift.west(Occl.west(orthoSliders, noKing)))
-        oppAttacks = oppAttacks or (Shift.east(Occl.east(orthoSliders, noKing)))
+        attackedSqrs = Rays.nort(orthoSliders, noKing)
+        attackedSqrs = attackedSqrs or Rays.sout(orthoSliders, noKing)
+        attackedSqrs = attackedSqrs or Rays.west(orthoSliders, noKing)
+        attackedSqrs = attackedSqrs or Rays.east(orthoSliders, noKing)
+        attackedSqrs = attackedSqrs or Rays.noWe(diagonalSliders, noKing)
+        attackedSqrs = attackedSqrs or Rays.noEa(diagonalSliders, noKing)
+        attackedSqrs = attackedSqrs or Rays.soWe(diagonalSliders, noKing)
+        attackedSqrs = attackedSqrs or Rays.soEa(diagonalSliders, noKing)
 
-        oppAttacks = oppAttacks or (Shift.noWe(Occl.noWe(diagonalSliders, noKing)))
-        oppAttacks = oppAttacks or (Shift.noEa(Occl.noEa(diagonalSliders, noKing)))
-        oppAttacks = oppAttacks or (Shift.soWe(Occl.soWe(diagonalSliders, noKing)))
-        oppAttacks = oppAttacks or (Shift.soEa(Occl.soEa(diagonalSliders, noKing)))
+        attackedSqrs = attackedSqrs or knightFill(knights)
+        attackedSqrs = attackedSqrs or kingAttacks[oppKingSqr]!!
+        attackedSqrs = attackedSqrs or left(pawns) or right(pawns)
 
-        oppAttacks = oppAttacks or knightAttacks(board.getKnightBB(oppClr))
-        oppAttacks = oppAttacks or kingAttacks[oppKingSqr]!!
-        oppAttacks = oppAttacks or left(pawns) or right(pawns)
+        safeSqrs = attackedSqrs.inv()
+        inCheck = attackedSqrs and ownKingMask != 0UL
 
-        oppNoAttack = oppAttacks.inv()
+        if (inCheck) {
+            var attackers = knightAttacks[ownKingSqr]!! and knights
+            attackers = attackers or ((left(ownKingMask) or right(ownKingMask)) and pawns)
+
+            val nortRay = Rays.nort(ownKingMask, emptySqrs)
+            val soutRay = Rays.sout(ownKingMask, emptySqrs)
+            val westRay = Rays.west(ownKingMask, emptySqrs)
+            val eastRay = Rays.east(ownKingMask, emptySqrs)
+            attackers = attackers or (nortRay and orthoSliders)
+            attackers = attackers or (soutRay and orthoSliders)
+            attackers = attackers or (westRay and orthoSliders)
+            attackers = attackers or (eastRay and orthoSliders)
+
+            val noWeRay = Rays.noWe(ownKingMask, emptySqrs)
+            val noEaRay = Rays.noEa(ownKingMask, emptySqrs)
+            val soWeRay = Rays.soWe(ownKingMask, emptySqrs)
+            val soEaRay = Rays.soEa(ownKingMask, emptySqrs)
+            attackers = attackers or (noWeRay and diagonalSliders)
+            attackers = attackers or (noEaRay and diagonalSliders)
+            attackers = attackers or (soWeRay and diagonalSliders)
+            attackers = attackers or (soEaRay and diagonalSliders)
+
+            val checkerCnt = attackers.countOneBits()
+            if (checkerCnt > 1) {
+                inDoubleCheck = true
+            } else if (checkerCnt == 1) {
+                moveMask = attackers
+
+                // Add rays
+                if ((orthoSliders or diagonalSliders) and attackers != 0UL) {
+                    moveMask = moveMask or
+                        when (attackers) {
+                            nortRay and attackers -> nortRay
+                            soutRay and attackers -> soutRay
+                            westRay and attackers -> westRay
+                            eastRay and attackers -> eastRay
+                            noWeRay and attackers -> noWeRay
+                            noEaRay and attackers -> noEaRay
+                            soWeRay and attackers -> soWeRay
+                            soEaRay and attackers -> soEaRay
+                            else -> 0UL
+                        }
+                }
+            }
+        }
     }
 }
 
@@ -404,10 +492,13 @@ class MoveGen(
         data.update()
 
         generateKingMoves(moves, data)
-        generateOrthogonalMoves(moves, data)
-        generateDiagonalMoves(moves, data)
-        generatePawnMoves(moves, data)
-        generateKnightMoves(moves, data)
+
+        if (!data.inDoubleCheck) {
+            generateOrthogonalMoves(moves, data)
+            generateDiagonalMoves(moves, data)
+            generatePawnMoves(moves, data)
+            generateKnightMoves(moves, data)
+        }
 
         return moves
     }
