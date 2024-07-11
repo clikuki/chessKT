@@ -64,20 +64,22 @@ private fun generateOrthogonalMoves(
 
     var (lsb1, from) = lsb(sliders)
     while (lsb1 != 0UL) {
-        val north = Occl.nort(lsb1, (data.ownPieces or Shift.nort(data.oppPieces, 1)).inv())
-        val south = Occl.sout(lsb1, (data.ownPieces or Shift.sout(data.oppPieces, 1)).inv())
-        val west = Occl.west(lsb1, (data.ownPieces or Shift.west(data.oppPieces)).inv())
-        val east = Occl.east(lsb1, (data.ownPieces or Shift.east(data.oppPieces)).inv())
-        var rays = (north or south or west or east) xor lsb1
+        val north = Occl.nort(lsb1, Rays.nort(sliders, data.emptySqrs))
+        val south = Occl.sout(lsb1, Rays.sout(sliders, data.emptySqrs))
+        val west = Occl.west(lsb1, Rays.west(sliders, data.emptySqrs))
+        val east = Occl.east(lsb1, Rays.east(sliders, data.emptySqrs))
+        var rays = (north or south or west or east) xor lsb1 and data.emptyOrOppSqrs and data.moveMask
 
-        var (lsb2, to) = lsb(rays)
-        while (rays != 0UL) {
-            moves.add(Move(from, to, type = Move.QUIET))
+        if (rays != 0UL) {
+            var (lsb2, to) = lsb(rays)
+            while (rays != 0UL) {
+                moves.add(Move(from, to, type = Move.QUIET))
 
-            rays = rays xor lsb2
-            with(lsb(rays)) {
-                lsb2 = first
-                to = second
+                rays = rays xor lsb2
+                with(lsb(rays)) {
+                    lsb2 = first
+                    to = second
+                }
             }
         }
 
@@ -98,19 +100,22 @@ private fun generateDiagonalMoves(
 
     var (lsb1, from) = lsb(sliders)
     while (lsb1 != 0UL) {
-        val noWe = Occl.noWe(lsb1, (data.ownPieces or Shift.noWe(data.oppPieces)).inv())
-        val noEa = Occl.noEa(lsb1, (data.ownPieces or Shift.noEa(data.oppPieces)).inv())
-        val soWe = Occl.soWe(lsb1, (data.ownPieces or Shift.soWe(data.oppPieces)).inv())
-        val soEa = Occl.soEa(lsb1, (data.ownPieces or Shift.soEa(data.oppPieces)).inv())
-        var rays = (noWe or noEa or soWe or soEa) xor lsb1
-        var (lsb2, to) = lsb(rays)
-        while (rays != 0UL) {
-            moves.add(Move(from, to, type = Move.QUIET))
+        val noWe = Occl.noWe(lsb1, Rays.noWe(sliders, data.emptySqrs))
+        val noEa = Occl.noEa(lsb1, Rays.noEa(sliders, data.emptySqrs))
+        val soWe = Occl.soWe(lsb1, Rays.soWe(sliders, data.emptySqrs))
+        val soEa = Occl.soEa(lsb1, Rays.soEa(sliders, data.emptySqrs))
+        var rays = (noWe or noEa or soWe or soEa) xor lsb1 and data.emptyOrOppSqrs and data.moveMask
 
-            rays = rays xor lsb2
-            with(lsb(rays)) {
-                lsb2 = first
-                to = second
+        if (rays != 0UL) {
+            var (lsb2, to) = lsb(rays)
+            while (rays != 0UL) {
+                moves.add(Move(from, to, type = Move.QUIET))
+
+                rays = rays xor lsb2
+                with(lsb(rays)) {
+                    lsb2 = first
+                    to = second
+                }
             }
         }
 
@@ -146,16 +151,17 @@ private fun generatePawnMoves(
     val dblPushRank = if (data.isWhite) RANK_2 else RANK_7
 
     val pawns = data.board.getPawnBB()
-    var normalPawns = shifter(pawns and nonPromoRanks, 1) and data.emptySqrs
-    var promoPawns = shifter(pawns and promotionRank, 1) and data.emptySqrs
-    var dblPushPawns = shifter(pawns and dblPushRank, 2) and (data.emptySqrs and shifter(data.emptySqrs, 1))
+    var normalPawns = shifter(pawns and nonPromoRanks, 1) and data.emptySqrs and data.moveMask
+    var promoPawns = shifter(pawns and promotionRank, 1) and data.emptySqrs and data.moveMask
+    var dblPushPawns =
+        shifter(pawns and dblPushRank, 2) and (data.emptySqrs and shifter(data.emptySqrs, 1)) and data.moveMask
 
     val left = if (data.isWhite) Shift::noWe else Shift::soWe
     val right = if (data.isWhite) Shift::noEa else Shift::soEa
-    var normalCaptureLeft = left(pawns and nonPromoRanks) and data.oppPieces
-    var normalCaptureRight = right(pawns and nonPromoRanks) and data.oppPieces
-    var promoCaptureLeft = left(pawns and promotionRank) and data.oppPieces
-    var promoCaptureRight = right(pawns and promotionRank) and data.oppPieces
+    var normalCaptureLeft = left(pawns and nonPromoRanks) and data.oppPieces and data.moveMask
+    var normalCaptureRight = right(pawns and nonPromoRanks) and data.oppPieces and data.moveMask
+    var promoCaptureLeft = left(pawns and promotionRank) and data.oppPieces and data.moveMask
+    var promoCaptureRight = right(pawns and promotionRank) and data.oppPieces and data.moveMask
 
 //    Normal push
     if (normalPawns != 0UL) {
@@ -272,15 +278,21 @@ private fun generatePawnMoves(
         }
     }
 
+//    En passant
     if (data.board.enpassantTarget != -1) {
-        val leftPawn = data.board.enpassantTarget - 1
-        val rightPawn = data.board.enpassantTarget + 1
         val to = data.board.enpassantTarget + forwardOffset
-        if ((pawns shr leftPawn) and 1UL == 1UL) {
-            moves.add(Move(leftPawn, to, type = Move.EP_CAPTURE))
-        }
-        if ((pawns shr rightPawn) and 1UL == 1UL) {
-            moves.add(Move(rightPawn, to, type = Move.EP_CAPTURE))
+        val epMask = (1UL shl data.board.enpassantTarget) or (1UL shl to)
+
+        if (epMask and data.moveMask != 0UL) {
+            val leftPawn = data.board.enpassantTarget - 1
+            val rightPawn = data.board.enpassantTarget + 1
+
+            if ((pawns shr leftPawn) and 1UL == 1UL) {
+                moves.add(Move(leftPawn, to, type = Move.EP_CAPTURE))
+            }
+            if ((pawns shr rightPawn) and 1UL == 1UL) {
+                moves.add(Move(rightPawn, to, type = Move.EP_CAPTURE))
+            }
         }
     }
 }
@@ -290,27 +302,27 @@ private fun generateKnightMoves(
     data: MoveGenData,
 ) {
     var knights = data.board.getKnightBB()
-    if (knights != 0UL) {
-        var (lsb1, from) = lsb(knights)
-        while (lsb1 != 0UL) {
-            var attacks = knightAttacks[from]!! and data.emptyOrOppSqrs
-            var (lsb2, to) = lsb(attacks)
-            while (lsb2 != 0UL) {
-                val type = if (lsb2 and data.oppPieces != 0UL) Move.CAPTURE else Move.QUIET
-                moves.add(Move(from, to, type))
+    if (knights == 0UL) return
 
-                attacks = attacks xor lsb2
-                with(lsb(attacks)) {
-                    lsb2 = first
-                    to = second
-                }
-            }
+    var (lsb1, from) = lsb(knights)
+    while (lsb1 != 0UL) {
+        var attacks = knightAttacks[from]!! and data.emptyOrOppSqrs and data.moveMask
+        var (lsb2, to) = lsb(attacks)
+        while (lsb2 != 0UL) {
+            val type = if (lsb2 and data.oppPieces != 0UL) Move.CAPTURE else Move.QUIET
+            moves.add(Move(from, to, type))
 
-            knights = knights xor lsb1
-            with(lsb(knights)) {
-                lsb1 = first
-                from = second
+            attacks = attacks xor lsb2
+            with(lsb(attacks)) {
+                lsb2 = first
+                to = second
             }
+        }
+
+        knights = knights xor lsb1
+        with(lsb(knights)) {
+            lsb1 = first
+            from = second
         }
     }
 }
@@ -380,7 +392,7 @@ data class MoveGenData(
 
     var attackedSqrs = 0UL
     var safeSqrs = 0UL
-    var attackers = 0UL
+    var checkers = 0UL
     var moveMask = 0UL
 
     init {
@@ -435,48 +447,50 @@ data class MoveGenData(
         inCheck = attackedSqrs and ownKingMask != 0UL
 
         if (inCheck) {
-            var attackers = knightAttacks[ownKingSqr]!! and knights
-            attackers = attackers or ((left(ownKingMask) or right(ownKingMask)) and pawns)
+            checkers = knightAttacks[ownKingSqr]!! and knights
+            checkers = checkers or ((left(ownKingMask) or right(ownKingMask)) and pawns)
 
             val nortRay = Rays.nort(ownKingMask, emptySqrs)
             val soutRay = Rays.sout(ownKingMask, emptySqrs)
             val westRay = Rays.west(ownKingMask, emptySqrs)
             val eastRay = Rays.east(ownKingMask, emptySqrs)
-            attackers = attackers or (nortRay and orthoSliders)
-            attackers = attackers or (soutRay and orthoSliders)
-            attackers = attackers or (westRay and orthoSliders)
-            attackers = attackers or (eastRay and orthoSliders)
+            checkers = checkers or (nortRay and orthoSliders)
+            checkers = checkers or (soutRay and orthoSliders)
+            checkers = checkers or (westRay and orthoSliders)
+            checkers = checkers or (eastRay and orthoSliders)
 
             val noWeRay = Rays.noWe(ownKingMask, emptySqrs)
             val noEaRay = Rays.noEa(ownKingMask, emptySqrs)
             val soWeRay = Rays.soWe(ownKingMask, emptySqrs)
             val soEaRay = Rays.soEa(ownKingMask, emptySqrs)
-            attackers = attackers or (noWeRay and diagonalSliders)
-            attackers = attackers or (noEaRay and diagonalSliders)
-            attackers = attackers or (soWeRay and diagonalSliders)
-            attackers = attackers or (soEaRay and diagonalSliders)
+            checkers = checkers or (noWeRay and diagonalSliders)
+            checkers = checkers or (noEaRay and diagonalSliders)
+            checkers = checkers or (soWeRay and diagonalSliders)
+            checkers = checkers or (soEaRay and diagonalSliders)
 
-            val checkerCnt = attackers.countOneBits()
-            if (checkerCnt > 1) {
+            if (checkers.countOneBits() > 1) {
+//                Unblockable, king needs to move
                 inDoubleCheck = true
-            } else if (checkerCnt == 1) {
-                moveMask = attackers
-
-                // Add rays
-                if ((orthoSliders or diagonalSliders) and attackers != 0UL) {
-                    moveMask = moveMask or
-                        when (attackers) {
-                            nortRay and attackers -> nortRay
-                            soutRay and attackers -> soutRay
-                            westRay and attackers -> westRay
-                            eastRay and attackers -> eastRay
-                            noWeRay and attackers -> noWeRay
-                            noEaRay and attackers -> noEaRay
-                            soWeRay and attackers -> soWeRay
-                            soEaRay and attackers -> soEaRay
-                            else -> 0UL
+            } else {
+//                Allow attack ray to be blocked or for checker to be captured
+                moveMask =
+                    if ((orthoSliders or diagonalSliders) and checkers == 0UL) {
+//                        Knight and pawn checks cannot be blocked
+                        checkers
+                    } else {
+//                        Queen, rook, bishop checks
+                        when (checkers) {
+                            nortRay and checkers -> nortRay
+                            soutRay and checkers -> soutRay
+                            westRay and checkers -> westRay
+                            eastRay and checkers -> eastRay
+                            noWeRay and checkers -> noWeRay
+                            noEaRay and checkers -> noEaRay
+                            soWeRay and checkers -> soWeRay
+                            soEaRay and checkers -> soEaRay
+                            else -> throw Error("IMPOSSIBLE STATE")
                         }
-                }
+                    }
             }
         }
     }
