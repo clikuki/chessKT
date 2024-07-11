@@ -41,7 +41,7 @@ class Board {
     var enpassantTarget = -1
     var halfMoveClock = 0
     var fullMoveCounter = 1
-    var castlingRights: Byte = 15
+    var castlingRights: Byte = 0
     private val unmoveStack = Stack<Unmove>()
 
     val bitboards =
@@ -325,13 +325,14 @@ class Board {
     companion object {
         fun from(fen: String): Board {
             val fenParts = fen.split(' ')
-            val grid = Board()
+            val board = Board()
 
+//            Piece placement
             var x = 0
-            var y = 7
+            var y = 0
             for (char in fenParts[0]) {
                 if (char == '/') {
-                    if (--y < 0) break
+                    if (++y > 7) break
                     x = 0
                 } else if (char.isDigit()) {
                     x += char.digitToInt()
@@ -347,10 +348,63 @@ class Board {
                             'k' -> Piece.KING
                             else -> throw Exception("Invalid FEN piece character : $char")
                         }
-                    grid.set(x++, y, color or type)
+                    board.set(x++, y, color or type)
                 }
             }
-            return grid
+
+//            Side to move
+            when (fenParts[1]) {
+                "w" -> board.side = Piece.WHITE
+                "b" -> board.side = Piece.BLACK
+                else -> throw Error("INVALID FEN - SIDE")
+            }
+
+//            Castling
+            board.castlingRights = 0
+            if (fenParts[2] != "-") {
+                for (char in fenParts[2]) {
+                    board.castlingRights = board.castlingRights or
+                        when (char) {
+                            'k' -> 1
+                            'q' -> 2
+                            'K' -> 4
+                            'Q' -> 8
+                            else -> throw Error("INVALID FEN - CASTLING")
+                        }
+                }
+            }
+
+//            EP target sqr
+            fenParts[3].let {
+                if (it == "-") {
+                    board.enpassantTarget = -1
+                    return@let
+                }
+
+                val rank = it[1].digitToInt().let { r -> if (r == 3) 4 else 3 }
+                val file =
+                    when (it[0]) {
+                        'a' -> 0
+                        'b' -> 1
+                        'c' -> 3
+                        'd' -> 4
+                        'e' -> 5
+                        'f' -> 6
+                        'g' -> 7
+                        'h' -> 8
+                        else -> throw Error("INVALID FEN - EP SQR")
+                    }
+
+                board.enpassantTarget = rank * 8 + file
+            }
+
+//            Halfmove clock
+            board.halfMoveClock = fenParts[4].toInt()
+
+//            Fullmove clock
+            board.fullMoveCounter = fenParts[5].toInt()
+
+            return board
         }
     }
 }
