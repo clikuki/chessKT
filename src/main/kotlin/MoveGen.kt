@@ -2,59 +2,6 @@ import kotlin.experimental.and
 
 fun lsb(bb: ULong) = bb.takeLowestOneBit().let { it to it.countTrailingZeroBits() }
 
-private fun knightFill(knights: ULong): ULong {
-    var east = Shift.east(knights)
-    var west = Shift.west(knights)
-    var attacks = east or west shl 16
-    attacks = attacks or ((east or west) shr 16)
-    east = Shift.east(east)
-    west = Shift.west(west)
-    attacks = attacks or ((east or west) shl 8)
-    return attacks or ((east or west) shr 8)
-}
-
-private object Rays {
-    fun nort(
-        gen: ULong,
-        pro: ULong,
-    ) = Shift.nort(Occl.nort(gen, pro), 1)
-
-    fun sout(
-        gen: ULong,
-        pro: ULong,
-    ) = Shift.sout(Occl.sout(gen, pro), 1)
-
-    fun west(
-        gen: ULong,
-        pro: ULong,
-    ) = Shift.west(Occl.west(gen, pro))
-
-    fun east(
-        gen: ULong,
-        pro: ULong,
-    ) = Shift.east(Occl.east(gen, pro))
-
-    fun noWe(
-        gen: ULong,
-        pro: ULong,
-    ) = Shift.noWe(Occl.noWe(gen, pro))
-
-    fun noEa(
-        gen: ULong,
-        pro: ULong,
-    ) = Shift.noEa(Occl.noEa(gen, pro))
-
-    fun soWe(
-        gen: ULong,
-        pro: ULong,
-    ) = Shift.soWe(Occl.soWe(gen, pro))
-
-    fun soEa(
-        gen: ULong,
-        pro: ULong,
-    ) = Shift.soEa(Occl.soEa(gen, pro))
-}
-
 private fun generateOrthogonalMoves(
     moves: MutableList<Move>,
     data: MoveGenData,

@@ -13,18 +13,20 @@ val knightAttacks =
         val notABfiles = NOT_A_FILE and (NOT_A_FILE shl 1)
         val notRank8 = RANK_8.inv()
         val notRanks8or7 = (RANK_8 or RANK_7).inv()
+        val notRank1 = RANK_1.inv()
+        val notRanks1or2 = (RANK_1 or RANK_2).inv()
 
         for (y in 0..7) {
             for (x in 0..7) {
                 val i = y * 8 + x
-                var attacks = 1UL shl (i + 10) and notABfiles and notRank8
-                attacks = attacks or (1UL shl (i + 17) and NOT_A_FILE and notRanks8or7)
-                attacks = attacks or (((1UL shl i) shr 6) and notABfiles)
-                attacks = attacks or (((1UL shl i) shr 15) and NOT_A_FILE)
-                attacks = attacks or (1UL shl (i + 15) and NOT_H_FILE and notRanks8or7)
-                attacks = attacks or (1UL shl (i + 6) and notGHfiles and notRank8)
-                attacks = attacks or (((1UL shl i) shr 10) and notGHfiles)
-                attacks = attacks or (((1UL shl i) shr 17) and NOT_H_FILE)
+                var attacks = 1UL shl (i - 17) and NOT_H_FILE and notRanks1or2
+                attacks = attacks or ((1UL shl (i - 15)) and NOT_A_FILE and notRanks1or2)
+                attacks = attacks or ((1UL shl (i - 10)) and notGHfiles and notRank1)
+                attacks = attacks or ((1UL shl (i - 6)) and notABfiles and notRank1)
+                attacks = attacks or ((1UL shl (i + 6)) and notGHfiles and notRank8)
+                attacks = attacks or ((1UL shl (i + 10)) and notABfiles and notRank8)
+                attacks = attacks or ((1UL shl (i + 15)) and NOT_H_FILE and notRanks8or7)
+                attacks = attacks or ((1UL shl (i + 17)) and NOT_A_FILE and notRanks8or7)
 
                 set(i, attacks)
             }
@@ -121,6 +123,17 @@ object Fill {
         gen = gen or (pr1 and (gen shl 14))
         return gen or (pr2 and (gen shl 21))
     }
+}
+
+fun knightFill(knights: ULong): ULong {
+    var east = Shift.east(knights)
+    var west = Shift.west(knights)
+    var attacks = east or west shl 16
+    attacks = attacks or ((east or west) shr 16)
+    east = Shift.east(east)
+    west = Shift.west(west)
+    attacks = attacks or ((east or west) shl 8)
+    return attacks or ((east or west) shr 8)
 }
 
 // OCCLUDED FILLS
@@ -245,4 +258,47 @@ object Shift {
     fun noWe(b: ULong) = (b shr 9) and NOT_H_FILE
 
     fun soWe(b: ULong) = (b shl 7) and NOT_H_FILE
+}
+
+// ATTACK RAYS
+object Rays {
+    fun nort(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.nort(Occl.nort(gen, pro), 1)
+
+    fun sout(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.sout(Occl.sout(gen, pro), 1)
+
+    fun west(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.west(Occl.west(gen, pro))
+
+    fun east(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.east(Occl.east(gen, pro))
+
+    fun noWe(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.noWe(Occl.noWe(gen, pro))
+
+    fun noEa(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.noEa(Occl.noEa(gen, pro))
+
+    fun soWe(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.soWe(Occl.soWe(gen, pro))
+
+    fun soEa(
+        gen: ULong,
+        pro: ULong,
+    ) = Shift.soEa(Occl.soEa(gen, pro))
 }
