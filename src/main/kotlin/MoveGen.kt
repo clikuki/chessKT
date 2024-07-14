@@ -6,7 +6,7 @@ private fun generateOrthogonalMoves(
     moves: MutableList<Move>,
     data: MoveGenData,
 ) {
-    var sliders = (data.board.getQueenBB() or data.board.getRookBB()) and data.diagonalPins.inv()
+    var sliders = (data.board.getQueenBB() or data.board.getRookBB()) and data.allDiagPins.inv()
     if (sliders == 0UL) return
 
     var (lsb1, from) = lsb(sliders)
@@ -53,7 +53,7 @@ private fun generateDiagonalMoves(
         val soWe = Occl.soWe(lsb1, Rays.soWe(sliders, data.emptySqrs))
         val soEa = Occl.soEa(lsb1, Rays.soEa(sliders, data.emptySqrs))
         var rays = (noWe or noEa or soWe or soEa) xor lsb1 and data.emptyOrOppSqrs and data.moveMask
-        if (lsb1 and data.diagonalPins != 0UL) rays = rays and data.diagonalPins
+        if (lsb1 and data.allDiagPins != 0UL) rays = rays and data.allDiagPins
 
         if (rays != 0UL) {
             var (lsb2, to) = lsb(rays)
@@ -93,38 +93,36 @@ private fun generatePawnMoves(
     data: MoveGenData,
 ) {
     val forwardOffset = if (data.isWhite) -8 else 8
+    val diagOffset = if (data.isWhite) -9 else 9
+    val antiDiagOffset = if (data.isWhite) -7 else 7
     val shifter = if (data.isWhite) Shift::nort else Shift::sout
-    val left = if (data.isWhite) Shift::noWe else Shift::soWe
-    val right = if (data.isWhite) Shift::noEa else Shift::soEa
+    val diagShifter = if (data.isWhite) Shift::noWe else Shift::soWe
+    val antDiagShifter = if (data.isWhite) Shift::noEa else Shift::soEa
 
     val promotionRank = if (data.isWhite) RANK_8 else RANK_1
     val nonPromoRanks = promotionRank.inv()
     val dblPushRank = if (data.isWhite) RANK_2 else RANK_7
     val dblPushMask = (data.emptySqrs and shifter(data.emptySqrs, 1)) and data.moveMask
-    val notDiagPinned = data.diagonalPins.inv()
-    val notOrthoPinned = data.orthoPins.inv()
-
-    val orthoPinsShifted = shifter(data.orthoPins, 1)
-    val diagPinsLeftShifted = left(data.diagonalPins)
-    val diagPinsRightShifted = right(data.diagonalPins)
 
     val pawns = data.board.getPawnBB()
-    var normalPawns = shifter(pawns and notDiagPinned and nonPromoRanks, 1) and data.emptySqrs and data.moveMask
-    var promoPawns = shifter(pawns and notDiagPinned and promotionRank, 1) and data.emptySqrs and data.moveMask
-    var dblPushPawns = shifter(pawns and notDiagPinned and dblPushRank, 2) and dblPushMask
+    val forwardPawns = pawns and (data.allDiagPins or data.horzPins).inv()
+    val diagPawns = pawns and (data.antiDiagonalPins or data.orthoPins).inv()
+    val antiDiagPawns = pawns and (data.diagonalPins or data.orthoPins).inv()
 
-    var normalCaptureLeft = left(pawns and notOrthoPinned and nonPromoRanks) and data.oppPieces and data.moveMask
-    var normalCaptureRight = right(pawns and notOrthoPinned and nonPromoRanks) and data.oppPieces and data.moveMask
-    var promoCaptureLeft = left(pawns and notOrthoPinned and promotionRank) and data.oppPieces and data.moveMask
-    var promoCaptureRight = right(pawns and notOrthoPinned and promotionRank) and data.oppPieces and data.moveMask
+    var normalPawns = shifter(forwardPawns and nonPromoRanks, 1) and data.emptySqrs and data.moveMask
+    var promoPawns = shifter(forwardPawns and promotionRank, 1) and data.emptySqrs and data.moveMask
+    var dblPushPawns = shifter(forwardPawns and dblPushRank, 2) and dblPushMask
+
+    var normalCaptureA = diagShifter(diagPawns and nonPromoRanks) and data.oppPieces and data.moveMask
+    var normalCaptureB = antDiagShifter(antiDiagPawns and nonPromoRanks) and data.oppPieces and data.moveMask
+    var promoCaptureA = diagShifter(diagPawns and promotionRank) and data.oppPieces and data.moveMask
+    var promoCaptureB = antDiagShifter(antiDiagPawns and promotionRank) and data.oppPieces and data.moveMask
 
 //    Normal push
     if (normalPawns != 0UL) {
         var (lsb, index) = lsb(normalPawns)
         while (lsb != 0UL) {
-            if (lsb and orthoPinsShifted == 0UL || lsb and data.orthoPins != 0UL) {
-                moves.add(Move(from = index - forwardOffset, to = index, type = Move.QUIET))
-            }
+            moves.add(Move(from = index - forwardOffset, to = index, type = Move.QUIET))
 
             normalPawns = normalPawns xor lsb
             with(lsb(normalPawns)) {
@@ -138,15 +136,13 @@ private fun generatePawnMoves(
     if (dblPushPawns != 0UL) {
         var (lsb, index) = lsb(dblPushPawns)
         while (lsb != 0UL) {
-            if (lsb and orthoPinsShifted == 0UL || lsb and data.orthoPins != 0UL) {
-                moves.add(
-                    Move(
-                        from = index - forwardOffset - forwardOffset,
-                        to = index,
-                        type = Move.DBL_PUSH,
-                    ),
-                )
-            }
+            moves.add(
+                Move(
+                    from = index - forwardOffset - forwardOffset,
+                    to = index,
+                    type = Move.DBL_PUSH,
+                ),
+            )
 
             dblPushPawns = dblPushPawns xor lsb
             with(lsb(dblPushPawns)) {
@@ -157,29 +153,25 @@ private fun generatePawnMoves(
     }
 
 //    Normal capture
-    if (normalCaptureLeft != 0UL) {
-        var (lsb, index) = lsb(normalCaptureLeft)
+    if (normalCaptureA != 0UL) {
+        var (lsb, index) = lsb(normalCaptureA)
         while (lsb != 0UL) {
-            if (lsb and diagPinsLeftShifted == 0UL || lsb and data.diagonalPins != 0UL) {
-                moves.add(Move(from = index - forwardOffset + 1, to = index, type = Move.CAPTURE))
-            }
+            moves.add(Move(from = index - diagOffset, to = index, type = Move.CAPTURE))
 
-            normalCaptureLeft = normalCaptureLeft xor lsb
-            with(lsb(normalCaptureLeft)) {
+            normalCaptureA = normalCaptureA xor lsb
+            with(lsb(normalCaptureA)) {
                 lsb = first
                 index = second
             }
         }
     }
-    if (normalCaptureRight != 0UL) {
-        var (lsb, index) = lsb(normalCaptureRight)
+    if (normalCaptureB != 0UL) {
+        var (lsb, index) = lsb(normalCaptureB)
         while (lsb != 0UL) {
-            if (lsb and diagPinsRightShifted == 0UL || lsb and data.diagonalPins != 0UL) {
-                moves.add(Move(from = index - forwardOffset - 1, to = index, type = Move.CAPTURE))
-            }
+            moves.add(Move(from = index - antiDiagOffset, to = index, type = Move.CAPTURE))
 
-            normalCaptureRight = normalCaptureRight xor lsb
-            with(lsb(normalCaptureRight)) {
+            normalCaptureB = normalCaptureB xor lsb
+            with(lsb(normalCaptureB)) {
                 lsb = first
                 index = second
             }
@@ -190,14 +182,12 @@ private fun generatePawnMoves(
     if (promoPawns != 0UL) {
         var (lsb, index) = lsb(promoPawns)
         while (lsb != 0UL) {
-            if (lsb and orthoPinsShifted == 0UL || lsb and data.orthoPins != 0UL) {
-                generatePromotions(
-                    moves = moves,
-                    from = index - forwardOffset,
-                    to = index,
-                    isCapture = false,
-                )
-            }
+            generatePromotions(
+                moves = moves,
+                from = index - forwardOffset,
+                to = index,
+                isCapture = false,
+            )
 
             promoPawns = promoPawns xor lsb
             with(lsb(promoPawns)) {
@@ -208,39 +198,35 @@ private fun generatePawnMoves(
     }
 
 //    Promo capture
-    if (promoCaptureLeft != 0UL) {
-        var (lsb, index) = lsb(promoCaptureLeft)
+    if (promoCaptureA != 0UL) {
+        var (lsb, index) = lsb(promoCaptureA)
         while (lsb != 0UL) {
-            if (lsb and diagPinsLeftShifted == 0UL || lsb and data.diagonalPins != 0UL) {
-                generatePromotions(
-                    moves = moves,
-                    from = index - forwardOffset + 1,
-                    to = index,
-                    isCapture = true,
-                )
-            }
+            generatePromotions(
+                moves = moves,
+                from = index - diagOffset,
+                to = index,
+                isCapture = true,
+            )
 
-            promoCaptureLeft = promoCaptureLeft xor lsb
-            with(lsb(promoCaptureLeft)) {
+            promoCaptureA = promoCaptureA xor lsb
+            with(lsb(promoCaptureA)) {
                 lsb = first
                 index = second
             }
         }
     }
-    if (promoCaptureRight != 0UL) {
-        var (lsb, index) = lsb(promoCaptureRight)
+    if (promoCaptureB != 0UL) {
+        var (lsb, index) = lsb(promoCaptureB)
         while (lsb != 0UL) {
-            if (lsb and diagPinsRightShifted == 0UL || lsb and data.diagonalPins != 0UL) {
-                generatePromotions(
-                    moves = moves,
-                    from = index - forwardOffset - 1,
-                    to = index,
-                    isCapture = true,
-                )
-            }
+            generatePromotions(
+                moves = moves,
+                from = index - antiDiagOffset,
+                to = index,
+                isCapture = true,
+            )
 
-            promoCaptureRight = promoCaptureRight xor lsb
-            with(lsb(promoCaptureRight)) {
+            promoCaptureB = promoCaptureB xor lsb
+            with(lsb(promoCaptureB)) {
                 lsb = first
                 index = second
             }
@@ -248,19 +234,47 @@ private fun generatePawnMoves(
     }
 
 //    En passant
-    if (data.board.enpassantTarget != -1) {
-        val to = data.board.enpassantTarget + forwardOffset
-        val epMask = (1UL shl data.board.enpassantTarget) or (1UL shl to)
+    val epTarget = data.board.enpassantTarget
+    if (epTarget != -1) {
+        val to = epTarget + forwardOffset
+        val epMask = (1UL shl epTarget)
 
-        if (epMask and data.moveMask != 0UL) {
-            val leftPawn = data.board.enpassantTarget - 1
-            val rightPawn = data.board.enpassantTarget + 1
+        if ((epMask or (1UL shl to)) and data.moveMask != 0UL) {
+            val leftIndex = epTarget - 1
+            val rightIndex = epTarget + 1
+            val leftPawn = 1UL shl leftIndex
+            val rightPawn = 1UL shl rightIndex
 
-            if ((pawns shr leftPawn) and 1UL == 1UL) {
-                moves.add(Move(leftPawn, to, type = Move.EP_CAPTURE))
+            var epPin = 0UL
+            val sliders = data.board.getQueenBB(data.oppClr) or data.board.getRookBB(data.oppClr)
+            val emptyNoEpMask = data.emptySqrs or epMask
+            var epPinner = Rays.west(leftPawn, emptyNoEpMask) and sliders
+            var ray = Rays.east(epPinner, emptyNoEpMask)
+            if (ray and data.ownKingMask != 0UL) {
+                epPin = ray
+            } else {
+                epPinner = Rays.east(leftPawn, emptyNoEpMask) and sliders
+                ray = Rays.west(epPinner, emptyNoEpMask)
+                if (ray and data.ownKingMask != 0UL) {
+                    epPin = ray
+                } else {
+                    epPinner = Rays.west(rightPawn, emptyNoEpMask) and sliders
+                    ray = Rays.east(epPinner, emptyNoEpMask)
+                    if (ray and data.ownKingMask != 0UL) {
+                        epPin = ray
+                    } else {
+                        epPinner = Rays.east(rightPawn, emptyNoEpMask) and sliders
+                        ray = Rays.west(epPinner, emptyNoEpMask)
+                        if (ray and data.ownKingMask != 0UL) epPin = ray
+                    }
+                }
             }
-            if ((pawns shr rightPawn) and 1UL == 1UL) {
-                moves.add(Move(rightPawn, to, type = Move.EP_CAPTURE))
+
+            if (data.moveMask and epPin and leftPawn != 0UL && pawns and leftPawn != 0UL) {
+                moves.add(Move(leftIndex, to, type = Move.EP_CAPTURE))
+            }
+            if (data.moveMask and epPin and rightPawn != 0UL && pawns and rightPawn != 0UL) {
+                moves.add(Move(rightIndex, to, type = Move.EP_CAPTURE))
             }
         }
     }
@@ -270,7 +284,7 @@ private fun generateKnightMoves(
     moves: MutableList<Move>,
     data: MoveGenData,
 ) {
-    var knights = data.board.getKnightBB() and data.allPins.inv()
+    var knights = data.board.getKnightBB() and (data.orthoPins or data.allDiagPins).inv()
     if (knights == 0UL) return
 
     var (lsb1, from) = lsb(knights)
@@ -300,16 +314,13 @@ private fun generateKingMoves(
     moves: MutableList<Move>,
     data: MoveGenData,
 ) {
-    val king = data.board.getKingBB()
-    val (_, from) = lsb(king)
-
 //    Normal move
-    var attacks = kingAttacks[from]!! and data.emptyOrOppSqrs and data.safeSqrs
+    var attacks = kingAttacks[data.ownKingSqr]!! and data.emptyOrOppSqrs and data.safeSqrs
     if (attacks != 0UL) {
         var (lsb, to) = lsb(attacks)
         while (lsb != 0UL) {
             val type = if (lsb and data.oppPieces != 0UL) Move.CAPTURE else Move.QUIET
-            moves.add(Move(from, to, type))
+            moves.add(Move(data.ownKingSqr, to, type))
 
             attacks = attacks xor lsb
             with(lsb(attacks)) {
@@ -321,20 +332,19 @@ private fun generateKingMoves(
 
 //    Castling
     if (!data.inCheck && data.board.castlingRights != 0.b) {
-        val isWhite = data.board.side == Piece.WHITE
-        val backrank = if (isWhite) RANK_1 else RANK_8
-        val sideMask: Byte = if (isWhite) 0b1100 else 0b0011
+        val backrank = if (data.isWhite) RANK_1 else RANK_8
+        val sideMask: Byte = if (data.isWhite) 0b1100 else 0b0011
         if (
             data.board.castlingRights and sideMask and 0b0101 != 0.b &&
             backrank and K_CASTLE_CHECK and (data.ownPieces or data.attackedSqrs) == 0UL
         ) {
-            moves.add(Move(from, to = from + 2, type = Move.K_CASTLE))
+            moves.add(Move(data.ownKingSqr, to = data.ownKingSqr + 2, type = Move.K_CASTLE))
         }
         if (
             data.board.castlingRights and sideMask and 0b1010 != 0.b &&
             backrank and Q_CASTLE_CHECK and (data.ownPieces or data.attackedSqrs) == 0UL
         ) {
-            moves.add(Move(from, to = from - 2, type = Move.Q_CASTLE))
+            moves.add(Move(data.ownKingSqr, to = data.ownKingSqr - 2, type = Move.Q_CASTLE))
         }
     }
 }
@@ -346,7 +356,6 @@ data class MoveGenData(
     var inDoubleCheck = false
 
     var isWhite = false
-    var ownClr: Byte = 0
     var oppClr: Byte = 0
     var ownKingMask = 0UL
     var ownKingSqr = 0
@@ -363,9 +372,12 @@ data class MoveGenData(
     var safeSqrs = 0UL
     var checkers = 0UL
     var moveMask = 0UL
-    var orthoPins = 0UL
+
+    var horzPins = 0UL
     var diagonalPins = 0UL
-    var allPins = 0UL
+    var antiDiagonalPins = 0UL
+    var orthoPins = 0UL
+    var allDiagPins = 0UL
 
     init {
         update()
@@ -376,7 +388,6 @@ data class MoveGenData(
         inDoubleCheck = false
 
         isWhite = board.side == Piece.WHITE
-        ownClr = board.side
         oppClr = if (isWhite) Piece.BLACK else Piece.WHITE
         ownKingMask = board.getKingBB()
         ownKingSqr = ownKingMask.countTrailingZeroBits()
@@ -388,10 +399,11 @@ data class MoveGenData(
         allPieces = board.occupancyBB
         emptySqrs = allPieces.inv()
         emptyOrOppSqrs = emptySqrs or oppPieces
+
         moveMask = 0xffffffffffffffffUL
+        horzPins = 0UL
         orthoPins = 0UL
         diagonalPins = 0UL
-        allPins = 0UL
 
         updateBitboards()
     }
@@ -472,27 +484,24 @@ data class MoveGenData(
 
 //        Pin calculations
         if (!inDoubleCheck) {
-//            Not sure if this is efficient ...
-            listOf(
-                Triple(Rays::nort, orthoSliders, ::orthoPins),
-                Triple(Rays::sout, orthoSliders, ::orthoPins),
-                Triple(Rays::west, orthoSliders, ::orthoPins),
-                Triple(Rays::east, orthoSliders, ::orthoPins),
-                Triple(Rays::noWe, diagonalSliders, ::diagonalPins),
-                Triple(Rays::noEa, diagonalSliders, ::diagonalPins),
-                Triple(Rays::soWe, diagonalSliders, ::diagonalPins),
-                Triple(Rays::soEa, diagonalSliders, ::diagonalPins),
-            ).forEach { (fill, sliders, pinMask) ->
-                val pc = fill(ownKingMask, emptySqrs) and ownPieces
-                if (pc == 0UL) return@forEach
-
-                val ray = fill(ownKingMask, emptySqrs or pc)
-                if (sliders and ray == 0UL) return@forEach
-
-                pinMask.set(pinMask() or ray)
-            }
-            allPins = orthoPins or diagonalPins
+            horzPins = calculatePin(Rays::west, orthoSliders)
+            horzPins = horzPins or calculatePin(Rays::east, orthoSliders)
+            orthoPins = horzPins or calculatePin(Rays::nort, orthoSliders) or calculatePin(Rays::sout, orthoSliders)
+            diagonalPins = calculatePin(Rays::noWe, diagonalSliders) or calculatePin(Rays::soEa, diagonalSliders)
+            antiDiagonalPins = calculatePin(Rays::noEa, diagonalSliders) or calculatePin(Rays::soWe, diagonalSliders)
+            allDiagPins = diagonalPins or antiDiagonalPins
         }
+    }
+
+    private fun calculatePin(
+        filler: (ULong, ULong) -> ULong,
+        sliders: ULong,
+    ): ULong {
+        val possiblePinned = filler(ownKingMask, emptySqrs) and ownPieces
+        if (possiblePinned == 0UL) return 0UL
+
+        val ray = filler(ownKingMask, emptySqrs or possiblePinned)
+        return if (sliders and ray == 0UL) 0UL else ray
     }
 }
 
