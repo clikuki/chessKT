@@ -11,11 +11,11 @@ private fun generateOrthogonalMoves(
 
     var (lsb1, from) = lsb(sliders)
     while (lsb1 != 0UL) {
-        val north = Occl.nort(lsb1, Rays.nort(sliders, data.emptySqrs))
-        val south = Occl.sout(lsb1, Rays.sout(sliders, data.emptySqrs))
-        val west = Occl.west(lsb1, Rays.west(sliders, data.emptySqrs))
-        val east = Occl.east(lsb1, Rays.east(sliders, data.emptySqrs))
-        var rays = (north or south or west or east) xor lsb1 and data.emptyOrOppSqrs and data.moveMask
+        val north = Rays.nort(lsb1, data.emptySqrs)
+        val south = Rays.sout(lsb1, data.emptySqrs)
+        val west = Rays.west(lsb1, data.emptySqrs)
+        val east = Rays.east(lsb1, data.emptySqrs)
+        var rays = (north or south or west or east) and data.emptyOrOppSqrs and data.moveMask
         if (lsb1 and data.orthoPins != 0UL) rays = rays and data.orthoPins
 
         if (rays != 0UL) {
@@ -48,11 +48,11 @@ private fun generateDiagonalMoves(
 
     var (lsb1, from) = lsb(sliders)
     while (lsb1 != 0UL) {
-        val noWe = Occl.noWe(lsb1, Rays.noWe(sliders, data.emptySqrs))
-        val noEa = Occl.noEa(lsb1, Rays.noEa(sliders, data.emptySqrs))
-        val soWe = Occl.soWe(lsb1, Rays.soWe(sliders, data.emptySqrs))
-        val soEa = Occl.soEa(lsb1, Rays.soEa(sliders, data.emptySqrs))
-        var rays = (noWe or noEa or soWe or soEa) xor lsb1 and data.emptyOrOppSqrs and data.moveMask
+        val noWe = Rays.noWe(lsb1, data.emptySqrs)
+        val noEa = Rays.noEa(lsb1, data.emptySqrs)
+        val soWe = Rays.soWe(lsb1, data.emptySqrs)
+        val soEa = Rays.soEa(lsb1, data.emptySqrs)
+        var rays = (noWe or noEa or soWe or soEa) and data.emptyOrOppSqrs and data.moveMask
         if (lsb1 and data.allDiagPins != 0UL) rays = rays and data.allDiagPins
 
         if (rays != 0UL) {
