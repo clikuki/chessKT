@@ -96,8 +96,8 @@ private fun generatePawnMoves(
     val diagOffset = if (data.isWhite) -9 else 9
     val antiDiagOffset = if (data.isWhite) -7 else 7
     val shifter = if (data.isWhite) Shift::nort else Shift::sout
-    val diagShifter = if (data.isWhite) Shift::noWe else Shift::soWe
-    val antDiagShifter = if (data.isWhite) Shift::noEa else Shift::soEa
+    val diagShifter = if (data.isWhite) Shift::noWe else Shift::soEa
+    val antiDiagShifter = if (data.isWhite) Shift::noEa else Shift::soWe
 
     val promotionRank = if (data.isWhite) RANK_8 else RANK_1
     val nonPromoRanks = promotionRank.inv()
@@ -114,9 +114,9 @@ private fun generatePawnMoves(
     var dblPushPawns = shifter(forwardPawns and dblPushRank, 2) and dblPushMask
 
     var normalCaptureA = diagShifter(diagPawns and nonPromoRanks) and data.oppPieces and data.moveMask
-    var normalCaptureB = antDiagShifter(antiDiagPawns and nonPromoRanks) and data.oppPieces and data.moveMask
+    var normalCaptureB = antiDiagShifter(antiDiagPawns and nonPromoRanks) and data.oppPieces and data.moveMask
     var promoCaptureA = diagShifter(diagPawns and promotionRank) and data.oppPieces and data.moveMask
-    var promoCaptureB = antDiagShifter(antiDiagPawns and promotionRank) and data.oppPieces and data.moveMask
+    var promoCaptureB = antiDiagShifter(antiDiagPawns and promotionRank) and data.oppPieces and data.moveMask
 
 //    Normal push
     if (normalPawns != 0UL) {
@@ -525,8 +525,4 @@ class MoveGen(
 
         return moves
     }
-}
-
-private fun main() {
-//    TODO: Perft tests
 }
