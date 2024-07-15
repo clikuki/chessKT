@@ -406,5 +406,19 @@ class Board {
 
             return board
         }
+
+        private val fileChars =
+            mapOf(
+                0 to 'a',
+                1 to 'b',
+                2 to 'c',
+                3 to 'd',
+                4 to 'e',
+                5 to 'f',
+                6 to 'g',
+                7 to 'h',
+            )
+
+        fun indexToSqr(i: Int) = fileChars[i % 8]!! + (8 - (i / 8)).toString()
     }
 }

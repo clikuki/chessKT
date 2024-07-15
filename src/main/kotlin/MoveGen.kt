@@ -234,47 +234,37 @@ private fun generatePawnMoves(
     }
 
 //    En passant
+//    TODO: Simplify en passant logic?
     val epTarget = data.board.enpassantTarget
     if (epTarget != -1) {
         val to = epTarget + forwardOffset
-        val epMask = (1UL shl epTarget)
+        val toMask = 1UL shl to
+        val epMask = 1UL shl epTarget
 
-        if ((epMask or (1UL shl to)) and data.moveMask != 0UL) {
-            val leftIndex = epTarget - 1
-            val rightIndex = epTarget + 1
-            val leftPawn = 1UL shl leftIndex
-            val rightPawn = 1UL shl rightIndex
+        val leftIndex = epTarget - 1
+        val rightIndex = epTarget + 1
+        val leftPawn = 1UL shl leftIndex
+        val rightPawn = 1UL shl rightIndex
+        val sidePawns = pawns and (leftPawn or rightPawn)
 
-            var epPin = 0UL
+        if (sidePawns != 0UL && (epMask or toMask) and data.moveMask != 0UL) {
             val sliders = data.board.getQueenBB(data.oppClr) or data.board.getRookBB(data.oppClr)
-            val emptyNoEpMask = data.emptySqrs or epMask
-            var epPinner = Rays.west(leftPawn, emptyNoEpMask) and sliders
-            var ray = Rays.east(epPinner, emptyNoEpMask)
-            if (ray and data.ownKingMask != 0UL) {
-                epPin = ray
-            } else {
-                epPinner = Rays.east(leftPawn, emptyNoEpMask) and sliders
-                ray = Rays.west(epPinner, emptyNoEpMask)
-                if (ray and data.ownKingMask != 0UL) {
-                    epPin = ray
+            val noPassanters = data.emptySqrs or epMask or (pawns and sidePawns)
+            val ray =
+                if (sidePawns and (sidePawns - 1UL) == 0UL) {
+                    Rays.east(data.ownKingMask, noPassanters) or Rays.west(data.ownKingMask, noPassanters)
                 } else {
-                    epPinner = Rays.west(rightPawn, emptyNoEpMask) and sliders
-                    ray = Rays.east(epPinner, emptyNoEpMask)
-                    if (ray and data.ownKingMask != 0UL) {
-                        epPin = ray
-                    } else {
-                        epPinner = Rays.east(rightPawn, emptyNoEpMask) and sliders
-                        ray = Rays.west(epPinner, emptyNoEpMask)
-                        if (ray and data.ownKingMask != 0UL) epPin = ray
-                    }
+                    0UL
                 }
-            }
 
-            if (data.moveMask and epPin and leftPawn != 0UL && pawns and leftPawn != 0UL) {
-                moves.add(Move(leftIndex, to, type = Move.EP_CAPTURE))
-            }
-            if (data.moveMask and epPin and rightPawn != 0UL && pawns and rightPawn != 0UL) {
-                moves.add(Move(rightIndex, to, type = Move.EP_CAPTURE))
+            if (ray and sliders == 0UL) {
+                if (pawns and leftPawn != 0UL) {
+                    moves.add(Move(leftIndex, to, type = Move.EP_CAPTURE))
+                }
+
+                if (pawns and rightPawn != 0UL) {
+                    moves.add(Move(rightIndex, to, type = Move.EP_CAPTURE))
+                }
             }
         }
     }
@@ -525,4 +515,27 @@ class MoveGen(
 
         return moves
     }
+}
+
+fun main() {
+//    Divide by move
+    val depth = 5
+    val board = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    val moveGen = MoveGen(board)
+    var totalNodes = 0
+    for (move in moveGen.generateMoves()) {
+        board.makeMove(move)
+        val nodeCnt = perft(MoveGen(board), depth - 1, mutableListOf())
+        totalNodes += nodeCnt
+        println("${Board.indexToSqr(move.from)}${Board.indexToSqr(move.to)}: $nodeCnt")
+        board.unmakeMove(move)
+    }
+    println("\nTotal nodes: $totalNodes")
+
+//    //    Check in depths
+//    for (i in 1..9) {
+//        val b = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+//        val nodeCnt = perft(MoveGen(b), i, mutableListOf())
+//        println("$i : $nodeCnt")
+//    }
 }
