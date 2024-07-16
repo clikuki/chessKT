@@ -321,13 +321,13 @@ private fun generateKingMoves(
         val sideMask: Byte = if (data.isWhite) 0b1100 else 0b0011
         if (
             data.board.castlingRights and sideMask and 0b0101 != 0.b &&
-            backrank and K_CASTLE_CHECK and (data.ownPieces or data.attackedSqrs) == 0UL
+            backrank and K_CASTLE_CHECK and (data.allPieces or data.attackedSqrs) == 0UL
         ) {
             moves.add(Move(data.ownKingSqr, to = data.ownKingSqr + 2, type = Move.K_CASTLE))
         }
         if (
             data.board.castlingRights and sideMask and 0b1010 != 0.b &&
-            backrank and Q_CASTLE_CHECK and (data.ownPieces or data.attackedSqrs) == 0UL
+            backrank and Q_CASTLE_CHECK and (data.allPieces or data.attackedSqrs) == 0UL
         ) {
             moves.add(Move(data.ownKingSqr, to = data.ownKingSqr - 2, type = Move.Q_CASTLE))
         }
