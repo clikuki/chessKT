@@ -1,27 +1,27 @@
 fun perft(
     moveGen: MoveGen,
     depth: Int,
-    path: MutableList<Move>,
-): Int {
-    if (depth == 0) return 1
+    path: List<Move>,
+): ULong {
+//    println(path.map { Board.indexToSqr(it.from) + Board.indexToSqr(it.to) })
 
-    var nodes = 0
+    if (depth == 0) return 1UL
+
+    var nodes = 0UL
     val moves = moveGen.generateMoves()
     var i = 0
     try {
         for (move in moves) {
-            path.add(move)
             moveGen.data.board.makeMove(move)
-            nodes += perft(moveGen, depth - 1, path)
+            nodes += perft(moveGen, depth - 1, path + move)
             moveGen.data.board.unmakeMove(move)
 
             i++
-            path.removeLast()
         }
     } catch (err: Exception) {
         val mv = moves[i]
-        println("ERROR ON : ${mv.from} -> ${mv.to} , ${mv.type}\n$path")
-        return -1
+        val pathStr = path.map { Board.indexToSqr(it.from) + Board.indexToSqr(it.to) }
+        println("ERROR ON : ${Board.indexToSqr(mv.from)}${Board.indexToSqr(mv.to)}\n$pathStr\n${err.stackTraceToString()}")
     }
 
     return nodes
