@@ -318,7 +318,7 @@ class Board {
             side = Piece.BLACK
         } else {
             side = Piece.WHITE
-            fullMoveCounter++
+            fullMoveCounter--
         }
     }
 
