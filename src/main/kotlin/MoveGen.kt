@@ -101,7 +101,7 @@ private fun generatePawnMoves(
     val diagShifter = if (data.isWhite) Shift::noWe else Shift::soEa
     val antiDiagShifter = if (data.isWhite) Shift::noEa else Shift::soWe
 
-    val promotionRank = if (data.isWhite) RANK_8 else RANK_1
+    val promotionRank = if (data.isWhite) RANK_7 else RANK_2
     val nonPromoRanks = promotionRank.inv()
     val dblPushRank = if (data.isWhite) RANK_2 else RANK_7
     val dblPushMask = (data.emptySqrs and shifter(data.emptySqrs, 1)) and data.moveMask
