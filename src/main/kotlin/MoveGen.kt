@@ -21,7 +21,8 @@ private fun generateOrthogonalMoves(
         if (rays != 0UL) {
             var (lsb2, to) = lsb(rays)
             while (rays != 0UL) {
-                moves.add(Move(from, to, type = Move.QUIET))
+                val type = if (lsb2 and data.oppPieces != 0UL) Move.CAPTURE else Move.QUIET
+                moves.add(Move(from, to, type))
 
                 rays = rays xor lsb2
                 with(lsb(rays)) {
@@ -58,7 +59,8 @@ private fun generateDiagonalMoves(
         if (rays != 0UL) {
             var (lsb2, to) = lsb(rays)
             while (rays != 0UL) {
-                moves.add(Move(from, to, type = Move.QUIET))
+                val type = if (lsb2 and data.oppPieces != 0UL) Move.CAPTURE else Move.QUIET
+                moves.add(Move(from, to, type))
 
                 rays = rays xor lsb2
                 with(lsb(rays)) {
