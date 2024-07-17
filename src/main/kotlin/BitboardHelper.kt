@@ -1,7 +1,8 @@
 const val NOT_A_FILE = 0xfefefefefefefefeUL
 const val NOT_H_FILE = 0x7f7f7f7f7f7f7f7fUL
 const val K_CASTLE_CHECK = 0x6000000000000060UL
-const val Q_CASTLE_CHECK = 0xe0000000000000eUL
+const val Q_CASTLE_PASS = 0xc0000000000000cUL
+const val Q_CASTLE_OBSTRUCT = 0xe0000000000000eUL
 const val RANK_1 = 0xff00000000000000UL
 const val RANK_2 = 0xff000000000000UL
 const val RANK_7 = 0xff00UL

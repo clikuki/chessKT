@@ -327,7 +327,8 @@ private fun generateKingMoves(
         }
         if (
             data.board.castlingRights and sideMask and 0b1010 != 0.b &&
-            backrank and Q_CASTLE_CHECK and (data.allPieces or data.attackedSqrs) == 0UL
+            backrank and Q_CASTLE_PASS and data.attackedSqrs == 0UL &&
+            backrank and Q_CASTLE_OBSTRUCT and data.allPieces == 0UL
         ) {
             moves.add(Move(data.ownKingSqr, to = data.ownKingSqr - 2, type = Move.Q_CASTLE))
         }
