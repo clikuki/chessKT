@@ -36,6 +36,7 @@ fun main() =
                     fun undoMove() {
                         if (moveStack.isEmpty()) return
                         board.unmakeMove(moveStack.removeLast())
+                        validMoves = moveGen.generateMoves()
                     }
                 }
             gui.add(settings, "Settings")
@@ -108,15 +109,13 @@ fun main() =
             mouse.buttonUp.listen { e ->
                 if (pcMoveIndex != null && isWithinBoard(e.position)) {
                     val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
-                    if (pcMoveIndex!! != toIndex) {
-                        mvLoop@for (move in validMoves) {
-//                            TODO: Update for special move types, ie. castling
-                            if (move.from != pcMoveIndex!! || move.to != toIndex) continue
-                            board.makeMove(move)
-                            moveStack.add(move)
-                            validMoves = MoveGen.pseudoLegal(board)
-                            break@mvLoop
-                        }
+                    mvLoop@for (move in validMoves) {
+                        if (move.from != pcMoveIndex!! || move.to != toIndex) continue
+                        println(move)
+                        board.makeMove(move)
+                        moveStack.add(move)
+                        validMoves = moveGen.generateMoves()
+                        break@mvLoop
                     }
                 }
 
