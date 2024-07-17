@@ -1,3 +1,5 @@
+import kotlin.experimental.and
+
 object Piece {
     const val NONE: Byte = 0b00_000
     const val PAWN: Byte = 0b00_001
@@ -11,4 +13,8 @@ object Piece {
 
     const val COLOR: Byte = 0b11_000
     const val TYPE: Byte = 0b00_111
+
+    fun split(pc: Byte) = (pc and COLOR) to (pc and TYPE)
+
+    fun invClr(clr: Byte) = if (clr == WHITE) BLACK else WHITE
 }
