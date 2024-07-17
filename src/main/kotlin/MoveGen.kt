@@ -400,8 +400,6 @@ data class MoveGenData(
         val diagonalSliders = (board.getQueenBB(oppClr) or board.getBishopBB(oppClr))
         val pawns = board.getPawnBB(oppClr)
         val knights = board.getKnightBB(oppClr)
-        val left = if (isWhite) Shift::soWe else Shift::noWe
-        val right = if (isWhite) Shift::soEa else Shift::noEa
 
         attackedSqrs = Rays.nort(orthoSliders, noKing)
         attackedSqrs = attackedSqrs or Rays.sout(orthoSliders, noKing)
@@ -414,7 +412,8 @@ data class MoveGenData(
 
         attackedSqrs = attackedSqrs or knightFill(knights)
         attackedSqrs = attackedSqrs or kingAttacks[oppKingSqr]!!
-        attackedSqrs = attackedSqrs or left(pawns) or right(pawns)
+        attackedSqrs = attackedSqrs or (if (isWhite) Shift::soWe else Shift::noWe)(pawns)
+        attackedSqrs = attackedSqrs or (if (isWhite) Shift::soEa else Shift::noEa)(pawns)
 
         safeSqrs = attackedSqrs.inv()
         inCheck = attackedSqrs and ownKingMask != 0UL
@@ -422,7 +421,8 @@ data class MoveGenData(
 //        Checkers and rays calculation
         if (inCheck) {
             checkers = knightAttacks[ownKingSqr]!! and knights
-            checkers = checkers or ((left(ownKingMask) or right(ownKingMask)) and pawns)
+            checkers = checkers or ((if (isWhite) Shift::noWe else Shift::soWe)(ownKingMask) and pawns)
+            checkers = checkers or ((if (isWhite) Shift::noEa else Shift::soEa)(ownKingMask) and pawns)
 
             val nortRay = Rays.nort(ownKingMask, emptySqrs)
             val soutRay = Rays.sout(ownKingMask, emptySqrs)
