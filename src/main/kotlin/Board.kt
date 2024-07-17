@@ -1,7 +1,7 @@
 import java.util.Stack
 import kotlin.experimental.and
+import kotlin.experimental.inv
 import kotlin.experimental.or
-import kotlin.experimental.xor
 
 inline val Int.b get() = toByte()
 
@@ -36,7 +36,7 @@ data class Unmove(
 )
 
 class Board {
-    val grid = ByteArray(64) { Piece.NONE }
+    private val grid = ByteArray(64) { Piece.NONE }
     var side: Byte = Piece.WHITE
     var enpassantTarget = -1
     var halfMoveClock = 0
@@ -55,76 +55,24 @@ class Board {
             Piece.WHITE to 0UL,
             Piece.BLACK to 0UL,
         )
-    var pawnBB
-        get() = bitboards[Piece.PAWN]!!
-        set(v) {
-            bitboards[Piece.PAWN] = v
-        }
-    var bishopBB
-        get() = bitboards[Piece.BISHOP]!!
-        set(v) {
-            bitboards[Piece.BISHOP] = v
-        }
-    var knightBB
-        get() = bitboards[Piece.KNIGHT]!!
-        set(v) {
-            bitboards[Piece.KNIGHT] = v
-        }
-    var rookBB
-        get() = bitboards[Piece.ROOK]!!
-        set(v) {
-            bitboards[Piece.ROOK] = v
-        }
-    var queenBB
-        get() = bitboards[Piece.QUEEN]!!
-        set(v) {
-            bitboards[Piece.QUEEN] = v
-        }
-    var kingBB
-        get() = bitboards[Piece.KING]!!
-        set(v) {
-            bitboards[Piece.KING] = v
-        }
-    var whiteBB
-        get() = bitboards[Piece.WHITE]!!
-        set(v) {
-            bitboards[Piece.WHITE] = v
-        }
-    var blackBB
-        get() = bitboards[Piece.BLACK]!!
-        set(v) {
-            bitboards[Piece.BLACK] = v
-        }
 
-    val occupancyBB get() = whiteBB or blackBB
-    val whitePawnBB get() = whiteBB and pawnBB
-    val whiteBishopBB get() = whiteBB and bishopBB
-    val whiteKnightBB get() = whiteBB and knightBB
-    val whiteRookBB get() = whiteBB and rookBB
-    val whiteQueenBB get() = whiteBB and queenBB
-    val whiteKingBB get() = whiteBB and kingBB
-    val blackPawnBB get() = blackBB and pawnBB
-    val blackBishopBB get() = blackBB and bishopBB
-    val blackKnightBB get() = blackBB and knightBB
-    val blackRookBB get() = blackBB and rookBB
-    val blackQueenBB get() = blackBB and queenBB
-    val blackKingBB get() = blackBB and kingBB
+    val occupancyBB get() = bitboards[Piece.WHITE]!! or bitboards[Piece.BLACK]!!
 
-    fun getColorBB(color: Byte = side) = if (color == Piece.WHITE) whiteBB else blackBB
+    fun getColorBB(color: Byte = side) = bitboards[color]!!
 
-    fun getOpponentBB(color: Byte = side) = if (color == Piece.WHITE) blackBB else whiteBB
+    fun getOpponentBB(color: Byte = side) = bitboards[Piece.invClr(color)]!!
 
-    fun getPawnBB(color: Byte = side) = if (color == Piece.WHITE) whitePawnBB else blackPawnBB
+    fun getPawnBB(color: Byte = side) = bitboards[color]!! and bitboards[Piece.PAWN]!!
 
-    fun getBishopBB(color: Byte = side) = if (color == Piece.WHITE) whiteBishopBB else blackBishopBB
+    fun getBishopBB(color: Byte = side) = bitboards[color]!! and bitboards[Piece.BISHOP]!!
 
-    fun getKnightBB(color: Byte = side) = if (color == Piece.WHITE) whiteKnightBB else blackKnightBB
+    fun getKnightBB(color: Byte = side) = bitboards[color]!! and bitboards[Piece.KNIGHT]!!
 
-    fun getRookBB(color: Byte = side) = if (color == Piece.WHITE) whiteRookBB else blackRookBB
+    fun getRookBB(color: Byte = side) = bitboards[color]!! and bitboards[Piece.ROOK]!!
 
-    fun getQueenBB(color: Byte = side) = if (color == Piece.WHITE) whiteQueenBB else blackQueenBB
+    fun getQueenBB(color: Byte = side) = bitboards[color]!! and bitboards[Piece.QUEEN]!!
 
-    fun getKingBB(color: Byte = side) = if (color == Piece.WHITE) whiteKingBB else blackKingBB
+    fun getKingBB(color: Byte = side) = bitboards[color]!! and bitboards[Piece.KING]!!
 
     fun get(pos: Int) = grid[pos]
 
@@ -147,178 +95,194 @@ class Board {
         }
 
 //        Set piece bitboards
-        if (clr == Piece.WHITE) {
-            whiteBB = whiteBB or mask
-        } else {
-            blackBB = blackBB or mask
-        }
-        when (piece xor clr) {
-            Piece.PAWN -> pawnBB = pawnBB or mask
-            Piece.BISHOP -> bishopBB = bishopBB or mask
-            Piece.KNIGHT -> knightBB = knightBB or mask
-            Piece.ROOK -> rookBB = rookBB or mask
-            Piece.QUEEN -> queenBB = queenBB or mask
-            Piece.KING -> kingBB = kingBB or mask
-        }
+        bitboards[clr] = bitboards[clr]!! or mask
+        bitboards[piece and Piece.TYPE] = bitboards[piece and Piece.TYPE]!! or mask
     }
 
     fun makeMove(move: Move) {
-        val fullpiece = grid[move.from]
-        val fullCaptured = if (move.type == Move.EP_CAPTURE) grid[enpassantTarget] else grid[move.to]
+        val isPromo = move.type and 8 == 8.b
+        val isCapture = move.type and 4 == 4.b
+        val isCastling = move.type and 14 == 2.b
+        val isEnpassant = move.type == Move.EP_CAPTURE
+
+//        1. Store unmove data
         unmoveStack.push(
             Unmove(
-                captured = fullCaptured,
+                captured = grid[if (isEnpassant) enpassantTarget else move.to],
                 prevHalfMoves = halfMoveClock,
                 prevEnpassant = enpassantTarget,
                 prevCastling = castlingRights,
             ),
         )
 
-//        Update grid
-        grid[move.from] = Piece.NONE
-        grid[move.to] = fullpiece
-        if (move.type == Move.EP_CAPTURE) {
-            grid[enpassantTarget] = Piece.NONE
-        }
+        val movedPiece = grid[move.from]
+        val pieceType = movedPiece and Piece.TYPE
+        val promoPiece =
+            when (move.type and 0b0011) {
+                0.b -> Piece.KNIGHT
+                1.b -> Piece.BISHOP
+                2.b -> Piece.ROOK
+                3.b -> Piece.QUEEN
+                else -> Piece.NONE
+            }
 
-//        Remove captured from BB
-        val ownPiece = fullpiece and Piece.TYPE
-        val ownClr = fullpiece and Piece.COLOR
-        val oppPiece = fullCaptured and Piece.TYPE
-        val oppClr = fullCaptured and Piece.COLOR
         val fromMask = (1UL shl move.from)
         val toMask = (1UL shl move.to)
-        if (move.type xor 2 < 2) {
-//            Update rooks grid and bitboards
-            val rookFromIndex = move.to + (if (move.type xor 2 == (0).b) 1 else -2)
+
+//        2. Remove captured pc from its bitboard
+        if (isCapture) {
+            val (capClr, capType) = Piece.split(grid[if (isEnpassant) enpassantTarget else move.to])
+            val mask = if (isEnpassant) (1UL shl enpassantTarget) else toMask
+            bitboards[capType] = bitboards[capType]!! xor mask
+            bitboards[capClr] = bitboards[capClr]!! xor mask
+
+//            Remove castling right for captured rooks
+            if (castlingRights != 0.b && capType == Piece.ROOK) {
+                val x = move.to % 8
+                val y = move.to / 8
+//                Only rooks on the corners
+                if ((x == 0 || x == 7) && (y == 0 || y == 7)) {
+//                    CASTLING = COLOR + SIDE
+                    val shiftBy = if (side == Piece.WHITE) 2 else 0 + (if (x == 0) 1 else 0)
+                    castlingRights = castlingRights and (1 shl shiftBy).toByte().inv()
+                }
+            }
+        }
+
+//        3. If castling, move rook in its bitboard and grid
+        if (isCastling) {
+//            GRID
+            val isKingside = move.type and 1 == 0.b
+            val rookFromIndex = move.to + (if (isKingside) 1 else -2)
             val rookToIndex = move.from + (move.to - move.from) / 2
             grid[rookToIndex] = grid[rookFromIndex]
             grid[rookFromIndex] = Piece.NONE
 
+//            BB
             val rookFromMask = (1UL shl rookFromIndex)
             val rookToMask = (1UL shl rookToIndex)
-            rookBB = rookBB xor rookFromMask or rookToMask
-            bitboards[ownClr] = bitboards[ownClr]!! xor rookFromMask or rookToMask
-
-//            Update castling rights
-            var shiftBy = if (ownClr == Piece.WHITE) 2 else 0
-            if (move.type and (1).b != (0).b) shiftBy += 1
-            castlingRights = castlingRights xor (1 shl shiftBy).toByte()
-        } else if (move.type == Move.EP_CAPTURE) {
-//            Remove ep piece
-            val epMask = 1UL shl enpassantTarget
-            bitboards[oppPiece] = bitboards[oppPiece]!! xor epMask
-            bitboards[oppClr] = bitboards[oppClr]!! xor epMask
-        } else if (fullCaptured != Piece.NONE) {
-//            Remove captured piece
-            bitboards[oppPiece] = bitboards[oppPiece]!! xor toMask
-            bitboards[oppClr] = bitboards[oppClr]!! xor toMask
+            bitboards[Piece.ROOK] = bitboards[Piece.ROOK]!! xor rookFromMask or rookToMask
+            bitboards[side] = bitboards[side]!! xor rookFromMask or rookToMask
         }
+
+//        4. If promoting, add respective piece to its bitboard
+//        5. Update moved piece in its bitboard
+        bitboards[side] = bitboards[side]!! xor fromMask or toMask
+        bitboards[pieceType] = bitboards[pieceType]!! xor fromMask
+        if (isPromo) {
+            bitboards[promoPiece] = bitboards[promoPiece]!! or toMask
+        } else {
+            bitboards[pieceType] = bitboards[pieceType]!! or toMask
+        }
+
+//        6. Update grid representation
+        grid[move.from] = Piece.NONE
+        grid[move.to] = if (isPromo) promoPiece or side else movedPiece
+        if (move.type == Move.EP_CAPTURE) {
+            grid[enpassantTarget] = Piece.NONE
+        }
+
+//        6. Update remaining board states
 
 //        Update castling rights for king/rook moves
-        if (ownPiece == Piece.KING) {
-            castlingRights = castlingRights and if (ownClr == Piece.WHITE) 0b0011 else 0b1100
-        } else if (ownPiece == Piece.ROOK) {
-            val xFrom = move.from % 8
-            if (xFrom !in 1..6) {
-                var shiftBy = if (ownClr == Piece.BLACK) 0 else 2
-                if (xFrom == 0) shiftBy += 1
-                castlingRights = castlingRights xor (1 shl shiftBy).toByte()
+        if (castlingRights != 0.b) {
+            if (pieceType == Piece.KING) {
+                castlingRights = castlingRights and if (side == Piece.WHITE) 0b0011 else 0b1100
+            } else if (pieceType == Piece.ROOK) {
+                val x = move.from % 8
+                if (x == 0 || x == 7) {
+                    var shiftBy = if (side == Piece.WHITE) 2 else 0
+                    if (x == 0) shiftBy += 1
+                    castlingRights = castlingRights and (1 shl shiftBy).toByte().inv()
+                }
             }
         }
 
-//        Update castling rights for captured rooks
-        if (fullCaptured and Piece.ROOK != (0).b) {
-            val xTo = move.to % 8
-            val yTo = move.to / 8
-            if (xTo !in 1..6 && yTo !in 1..6) {
-                var shiftBy = if (yTo == 0) 0 else 2
-                if (xTo == 0) shiftBy += 1
-                castlingRights = castlingRights xor (1 shl shiftBy).toByte()
-            }
-        }
-
-//        Update pc position in BB
-        bitboards[ownPiece] = bitboards[ownPiece]!! or toMask xor fromMask
-        bitboards[ownClr] = bitboards[ownClr]!! or toMask xor fromMask
-
-        if (ownPiece == Piece.PAWN || fullCaptured != Piece.NONE) {
+        if (isCapture || pieceType == Piece.PAWN) {
             halfMoveClock = 0
         } else {
-            halfMoveClock++
+            ++halfMoveClock
         }
 
         if (side == Piece.WHITE) {
             side = Piece.BLACK
         } else {
             side = Piece.WHITE
-            fullMoveCounter++
+            ++fullMoveCounter
         }
 
-        enpassantTarget =
-            if (move.type == Move.DBL_PUSH) {
-                move.to
-            } else {
-                -1
-            }
+        enpassantTarget = if (move.type == Move.DBL_PUSH) move.to else -1
     }
 
     fun unmakeMove(move: Move) {
         val unmove = unmoveStack.pop() ?: return
-        val fullpiece = grid[move.to]
-        val fullCaptured = unmove.captured
 
-//        Reset irreversible board states
+//        1. Reset board states
         enpassantTarget = unmove.prevEnpassant
         castlingRights = unmove.prevCastling
         halfMoveClock = unmove.prevHalfMoves
-
-//        Update grid
-        grid[move.from] = fullpiece
-        if (move.type == Move.EP_CAPTURE) {
-            grid[unmove.prevEnpassant] = fullCaptured
-            grid[move.to] = Piece.NONE
-        } else {
-            grid[move.to] = fullCaptured
-        }
-
-//        Update pc position in BB
-        val ownPiece = fullpiece and Piece.TYPE
-        val ownClr = fullpiece and Piece.COLOR
-        val oppPiece = fullCaptured and Piece.TYPE
-        val oppClr = fullCaptured and Piece.COLOR
-        val fromMask = (1UL shl move.from)
-        val toMask = (1UL shl move.to)
-        bitboards[ownPiece] = bitboards[ownPiece]!! or fromMask xor toMask
-        bitboards[ownClr] = bitboards[ownClr]!! or fromMask xor toMask
-
-//        Re-add captured from BB
-        if (move.type xor 2 < 2) {
-//            Update rooks for castling
-            val rookFromIndex = move.to + (if (move.type xor 2 == (0).b) 1 else -2)
-            val rookToIndex = move.from + (move.to - move.from) / 2
-            grid[rookFromIndex] = grid[rookToIndex]
-            grid[rookToIndex] = Piece.NONE
-
-            val rookFromMask = (1UL shl rookFromIndex)
-            val rookToMask = (1UL shl rookToIndex)
-            rookBB = rookBB xor rookToMask or rookFromMask
-            bitboards[ownClr] = bitboards[ownClr]!! xor rookToMask or rookFromMask
-        } else if (move.type == Move.EP_CAPTURE) {
-//            Return ep piece
-            val epMask = 1UL shl enpassantTarget
-            bitboards[oppPiece] = bitboards[oppPiece]!! or epMask
-            bitboards[oppClr] = bitboards[oppClr]!! or epMask
-        } else if (fullCaptured != Piece.NONE) {
-            bitboards[oppPiece] = bitboards[oppPiece]!! or toMask
-            bitboards[oppClr] = bitboards[oppClr]!! or toMask
-        }
-
         if (side == Piece.WHITE) {
             side = Piece.BLACK
         } else {
             side = Piece.WHITE
             fullMoveCounter--
+        }
+
+        val isPromo = move.type and 8 == 8.b
+        val isCapture = move.type and 4 == 4.b
+        val isCastling = move.type and 14 == 2.b
+        val isEnpassant = move.type == Move.EP_CAPTURE
+
+        val promoPiece = grid[move.to] and Piece.TYPE
+        val movedPiece = if (isPromo) side or Piece.PAWN else promoPiece
+        val pieceType = movedPiece and Piece.TYPE
+
+        val fromMask = (1UL shl move.from)
+        val toMask = (1UL shl move.to)
+
+//        2. Return moved piece to original bitboard index
+        bitboards[side] = bitboards[side]!! or fromMask xor toMask
+        bitboards[pieceType] = bitboards[pieceType]!! or fromMask
+        if (isPromo) {
+            bitboards[promoPiece] = bitboards[promoPiece]!! xor toMask
+        } else {
+            bitboards[pieceType] = bitboards[pieceType]!! xor toMask
+        }
+
+//        3. If capturing, return captured piece
+        if (isCapture) {
+            val (capClr, capType) = Piece.split(unmove.captured)
+            val mask = if (isEnpassant) (1UL shl enpassantTarget) else toMask
+            bitboards[capType] = bitboards[capType]!! or mask
+            bitboards[capClr] = bitboards[capClr]!! or mask
+            println(toMask)
+            println(capType)
+            println(bitboards[capType]!!)
+        }
+
+//        4. If castling, reset rooks
+        if (isCastling) {
+//            GRID
+            val isKingside = move.type and 1 == 0.b
+            val rookFromIndex = move.to + (if (isKingside) 1 else -2)
+            val rookToIndex = move.from + (move.to - move.from) / 2
+            grid[rookFromIndex] = grid[rookToIndex]
+            grid[rookFromIndex] = Piece.NONE
+
+//            BB
+            val rookFromMask = (1UL shl rookFromIndex)
+            val rookToMask = (1UL shl rookToIndex)
+            bitboards[Piece.ROOK] = bitboards[Piece.ROOK]!! or rookFromMask xor rookToMask
+            bitboards[side] = bitboards[side]!! or rookFromMask xor rookToMask
+        }
+
+//       5. Update grid representation
+        grid[move.from] = movedPiece
+        if (isEnpassant) {
+            grid[enpassantTarget] = unmove.captured
+            grid[move.to] = Piece.NONE
+        } else {
+            grid[move.to] = unmove.captured
         }
     }
 
