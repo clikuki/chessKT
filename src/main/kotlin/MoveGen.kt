@@ -236,33 +236,32 @@ private fun generatePawnMoves(
     }
 
 //    En passant
-    val epTarget = data.board.enpassantTarget
-    if (epTarget != -1 && data.moveMask shr (epTarget + forwardOffset) and 1UL == 1UL) {
-        val capturedPawn = 1UL shl epTarget
-        var capturingPawns =
-            pawns and ((1UL shl (epTarget - 1) and NOT_H_FILE) or (1UL shl (epTarget + 1) and NOT_A_FILE))
+    val epSqr = data.board.enpassantTarget
+    if (epSqr != -1 && data.moveMask shr (epSqr + forwardOffset) and 1UL == 1UL) {
+        val captureSqr = epSqr + forwardOffset
+        val captureMask = 1UL shl captureSqr
+        val epCaptureA = diagShifter(diagPawns) and captureMask and data.moveMask
+        val epCaptureB = antiDiagShifter(antiDiagPawns) and captureMask and data.moveMask
 
 //        Check for opponent ortho-sliders along the kings rank
-//        Ignore if there are two capturing pawns
-        if (capturingPawns and (capturingPawns - 1UL) == 0UL) {
-            val noPassanters = data.emptySqrs or capturedPawn or capturingPawns
-            val ray = Rays.east(data.ownKingMask, noPassanters) or Rays.west(data.ownKingMask, noPassanters)
+//        Ignore if there are two ep-capturing pawns
+        if ((epCaptureA == 0UL && epCaptureB != 0UL) || (epCaptureA != 0UL && epCaptureB == 0UL)) {
+            var empty = data.emptySqrs or (1UL shl epSqr)
+            empty = empty or (((1UL shl (epSqr - 1)) and NOT_H_FILE) and pawns)
+            empty = empty or (((1UL shl (epSqr + 1)) and NOT_A_FILE) and pawns)
+            val ray = Rays.west(data.ownKingMask, empty) or Rays.east(data.ownKingMask, empty)
+
+//            Exit early if pinned
             if (ray and (data.board.getQueenBB(data.oppClr) or data.board.getRookBB(data.oppClr)) != 0UL) {
-                capturingPawns = capturingPawns and ray.inv()
+                return
             }
         }
 
-        if (capturingPawns != 0UL) {
-            var (mask, from) = lsb(capturingPawns)
-            while (mask != 0UL) {
-                moves.add(Move(from, epTarget + forwardOffset, type = Move.EP_CAPTURE))
-
-                capturingPawns = capturingPawns xor mask
-                with(lsb(capturingPawns)) {
-                    mask = first
-                    from = second
-                }
-            }
+        if (epCaptureA != 0UL) {
+            moves.add(Move(captureSqr - diagOffset, captureSqr, type = Move.EP_CAPTURE))
+        }
+        if (epCaptureB != 0UL) {
+            moves.add(Move(captureSqr - antiDiagOffset, captureSqr, type = Move.EP_CAPTURE))
         }
     }
 }
