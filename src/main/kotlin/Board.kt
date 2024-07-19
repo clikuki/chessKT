@@ -143,7 +143,8 @@ class Board {
 //                Only rooks on the corners
                 if ((x == 0 || x == 7) && (y == 0 || y == 7)) {
 //                    CASTLING = COLOR + SIDE
-                    val shiftBy = if (side == Piece.WHITE) 2 else 0 + (if (x == 0) 1 else 0)
+                    var shiftBy = if (capClr == Piece.WHITE) 2 else 0
+                    if (x == 0) shiftBy++
                     castlingRights = castlingRights and (1 shl shiftBy).toByte().inv()
                 }
             }
@@ -234,7 +235,7 @@ class Board {
         val isEnpassant = move.type == Move.EP_CAPTURE
 
         val promoPiece = grid[move.to] and Piece.TYPE
-        val movedPiece = if (isPromo) side or Piece.PAWN else promoPiece
+        val movedPiece = if (isPromo) side or Piece.PAWN else grid[move.to]
         val pieceType = movedPiece and Piece.TYPE
 
         val fromMask = (1UL shl move.from)
@@ -255,9 +256,6 @@ class Board {
             val mask = if (isEnpassant) (1UL shl enpassantTarget) else toMask
             bitboards[capType] = bitboards[capType]!! or mask
             bitboards[capClr] = bitboards[capClr]!! or mask
-            println(toMask)
-            println(capType)
-            println(bitboards[capType]!!)
         }
 
 //        4. If castling, reset rooks
@@ -267,7 +265,7 @@ class Board {
             val rookFromIndex = move.to + (if (isKingside) 1 else -2)
             val rookToIndex = move.from + (move.to - move.from) / 2
             grid[rookFromIndex] = grid[rookToIndex]
-            grid[rookFromIndex] = Piece.NONE
+            grid[rookToIndex] = Piece.NONE
 
 //            BB
             val rookFromMask = (1UL shl rookFromIndex)
