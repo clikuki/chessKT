@@ -236,32 +236,32 @@ private fun generatePawnMoves(
     }
 
 //    En passant
-    val epSqr = data.board.enpassantTarget
-    if (epSqr != -1 && data.moveMask shr (epSqr + forwardOffset) and 1UL == 1UL) {
-        val captureSqr = epSqr + forwardOffset
-        val captureMask = 1UL shl captureSqr
-        val epCaptureA = diagShifter(diagPawns) and captureMask and data.moveMask
-        val epCaptureB = antiDiagShifter(antiDiagPawns) and captureMask and data.moveMask
+    data.board.enpassantTarget.let {
+        if (it != -1 && data.moveMask shr it and 1UL == 1UL) {
+            val epDestSqr = it + forwardOffset
+            val epCaptureA = diagShifter(diagPawns) and (1UL shl epDestSqr)
+            val epCaptureB = antiDiagShifter(antiDiagPawns) and (1UL shl epDestSqr)
 
-//        Check for opponent ortho-sliders along the kings rank
-//        Ignore if there are two ep-capturing pawns
-        if ((epCaptureA == 0UL && epCaptureB != 0UL) || (epCaptureA != 0UL && epCaptureB == 0UL)) {
-            var empty = data.emptySqrs or (1UL shl epSqr)
-            empty = empty or (((1UL shl (epSqr - 1)) and NOT_H_FILE) and pawns)
-            empty = empty or (((1UL shl (epSqr + 1)) and NOT_A_FILE) and pawns)
-            val ray = Rays.west(data.ownKingMask, empty) or Rays.east(data.ownKingMask, empty)
+//            Check for opponent ortho-sliders along the kings rank...
+//            ...only when 1 pawn can capture, not both or none
+            if ((epCaptureA == 0UL && epCaptureB != 0UL) || (epCaptureA != 0UL && epCaptureB == 0UL)) {
+                var empty = data.emptySqrs or (1UL shl it)
+                empty = empty or (((1UL shl (it - 1)) and NOT_H_FILE) and pawns)
+                empty = empty or (((1UL shl (it + 1)) and NOT_A_FILE) and pawns)
+                val ray = Rays.west(data.ownKingMask, empty) or Rays.east(data.ownKingMask, empty)
 
-//            Exit early if pinned
-            if (ray and (data.board.getQueenBB(data.oppClr) or data.board.getRookBB(data.oppClr)) != 0UL) {
-                return
+//                Exit early if pinned
+                if (ray and (data.board.getQueenBB(data.oppClr) or data.board.getRookBB(data.oppClr)) != 0UL) {
+                    return
+                }
             }
-        }
 
-        if (epCaptureA != 0UL) {
-            moves.add(Move(captureSqr - diagOffset, captureSqr, type = Move.EP_CAPTURE))
-        }
-        if (epCaptureB != 0UL) {
-            moves.add(Move(captureSqr - antiDiagOffset, captureSqr, type = Move.EP_CAPTURE))
+            if (epCaptureA != 0UL) {
+                moves.add(Move(epDestSqr - diagOffset, epDestSqr, type = Move.EP_CAPTURE))
+            }
+            if (epCaptureB != 0UL) {
+                moves.add(Move(epDestSqr - antiDiagOffset, epDestSqr, type = Move.EP_CAPTURE))
+            }
         }
     }
 }
