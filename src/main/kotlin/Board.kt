@@ -141,7 +141,7 @@ class Board {
                 val x = move.to % 8
                 val y = move.to / 8
 //                Only rooks on the corners
-                if ((x == 0 || x == 7) && (y == 0 || y == 7)) {
+                if ((x == 0 || x == 7) && ((capClr == Piece.BLACK && y == 0) || (capClr == Piece.WHITE && y == 7))) {
 //                    CASTLING = COLOR + SIDE
                     var shiftBy = if (capClr == Piece.WHITE) 2 else 0
                     if (x == 0) shiftBy++
@@ -191,7 +191,8 @@ class Board {
                 castlingRights = castlingRights and if (side == Piece.WHITE) 0b0011 else 0b1100
             } else if (pieceType == Piece.ROOK) {
                 val x = move.from % 8
-                if (x == 0 || x == 7) {
+                val y = move.from / 8
+                if ((x == 0 || x == 7) && ((side == Piece.BLACK && y == 0) || (side == Piece.WHITE && y == 7))) {
                     var shiftBy = if (side == Piece.WHITE) 2 else 0
                     if (x == 0) shiftBy += 1
                     castlingRights = castlingRights and (1 shl shiftBy).toByte().inv()
