@@ -496,43 +496,64 @@ class MoveGen(
     board: Board,
 ) {
     val data: MoveGenData = MoveGenData(board)
+    var moves = emptyList<Move>()
+
+    init {
+        generateMoves()
+    }
 
     fun generateMoves(): List<Move> {
-        val moves = mutableListOf<Move>()
+        val newMoves = mutableListOf<Move>()
         data.update()
 
-        generateKingMoves(moves, data)
+        generateKingMoves(newMoves, data)
 
         if (!data.inDoubleCheck) {
-            generateOrthogonalMoves(moves, data)
-            generateDiagonalMoves(moves, data)
-            generatePawnMoves(moves, data)
-            generateKnightMoves(moves, data)
+            generateOrthogonalMoves(newMoves, data)
+            generateDiagonalMoves(newMoves, data)
+            generatePawnMoves(newMoves, data)
+            generateKnightMoves(newMoves, data)
         }
 
-        return moves
+        moves = newMoves
+        return newMoves
     }
 }
 
 fun main() {
+//    //    Single check
+//    val depth = 6
+//    val board = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+//    println("$depth: ${perft(MoveGen(board), depth, emptyList())}")
+
     //    Divide by move
-    val depth = 6
-    val board = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    val depth = 3
+    val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 1 1")
+//    g1h1 > b2a1r > d1a1
+//    val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/P2P2PP/r2Q1R1K w kq - 0 2")
     val moveGen = MoveGen(board)
-    var totalNodes = 0
+    var totalNodes = 0UL
     for (move in moveGen.generateMoves()) {
         board.makeMove(move)
-        val nodeCnt = perft(MoveGen(board), depth - 1, mutableListOf())
+        val nodeCnt = perft(MoveGen(board), depth - 1, emptyList())
         totalNodes += nodeCnt
-        println("${Board.indexToSqr(move.from)}${Board.indexToSqr(move.to)}: $nodeCnt")
+        val promoTo =
+            when (move.type and 0b1011) {
+                0b1000.b -> "n"
+                0b1001.b -> "b"
+                0b1010.b -> "r"
+                0b1011.b -> "q"
+                else -> ""
+            }
+        println("${Board.indexToSqr(move.from)}${Board.indexToSqr(move.to)}$promoTo: $nodeCnt")
         board.unmakeMove(move)
     }
     println("\nTotal nodes: $totalNodes")
 
 //    //    Check in depths
-//    for (i in 1..6) {
-//        val b = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-//        val nodeCnt = perft(MoveGen(b), i, mutableListOf())
+//    for (i in 1..5) {
+//        val b = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
+//        val nodeCnt = perft(MoveGen(b), i, emptyList())
 //        println("$i : $nodeCnt")
 //    }
 }

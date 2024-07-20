@@ -11,6 +11,39 @@ import org.openrndr.math.Vector2
 import org.openrndr.shape.Rectangle
 import kotlin.experimental.or
 
+val lightTile = ColorRGBa.fromHex("#f2e1c3")
+val darkTile = ColorRGBa.fromHex("#c3a082")
+val tileHighlight = ColorRGBa.fromHex("#08ff006c")
+val windowBG = ColorRGBa.fromHex("#3a3a3a")
+val translucencyMatrix =
+    Matrix55(
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    )
+
 fun main() =
     application {
         configure {
@@ -19,27 +52,11 @@ fun main() =
             height = 612
         }
         program {
-//            val board = Board.from("RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1")
-            val board = Board.from("8/3pP3/8/8/3Qq3/8/3Pp3/8 w KQkq - 0 1")
-//            val board = Board.from("8/8/8/8/3Qq3/8/8/8 w KQkq - 0 1")
+//            val board = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+//            val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/P2P2PP/r2Q1R1K w kq - 0 2")
+            val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
             val moveStack = ArrayDeque<Move>()
-            var validMoves = MoveGen.pseudoLegal(board)
-
-            val gui = GUI()
-            val settings =
-                object {
-                    @BooleanParameter("Display Bitboards")
-                    var displayBitboards = true
-
-                    @Suppress("unused")
-                    @ActionParameter("Undo Move")
-                    fun undoMove() {
-                        if (moveStack.isEmpty()) return
-                        board.unmakeMove(moveStack.removeLast())
-                        validMoves = moveGen.generateMoves()
-                    }
-                }
-            gui.add(settings, "Settings")
+            val moveGen = MoveGen(board)
 
             val pieceSpriteSheet = loadImage("data/images/1280px-Chess_Pieces.png")
             val spriteSize = pieceSpriteSheet.width / 6.0
@@ -55,41 +72,24 @@ fun main() =
                     }
                 }
 
+            val gui = GUI()
+            val options =
+                object {
+                    @BooleanParameter("Display Bitboards")
+                    var displayBitboards = true
+
+                    @Suppress("unused")
+                    @ActionParameter("Undo Move")
+                    fun undoMove() {
+                        if (moveStack.isEmpty()) return
+                        board.unmakeMove(moveStack.removeLast())
+                        moveGen.generateMoves()
+                    }
+                }
+            gui.add(options, "Options")
+
             val tileSize = height / 10.0
             val boardOffset = (height - tileSize * 8) / 2
-            val lightTile = ColorRGBa.fromHex("#f2e1c3")
-            val darkTile = ColorRGBa.fromHex("#c3a082")
-            val tileHighlight = ColorRGBa.fromHex("#08ff006c")
-            val windowBG = ColorRGBa.fromHex("#3a3a3a")
-            val translucencyMatrix =
-                Matrix55(
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.5,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0,
-                )
-
             var mousePos: Vector2? = null
             var pcMoveIndex: Int? = null
 
@@ -109,12 +109,12 @@ fun main() =
             mouse.buttonUp.listen { e ->
                 if (pcMoveIndex != null && isWithinBoard(e.position)) {
                     val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
-                    mvLoop@for (move in validMoves) {
+                    mvLoop@for (move in moveGen.moves) {
                         if (move.from != pcMoveIndex!! || move.to != toIndex) continue
                         println(move)
                         board.makeMove(move)
                         moveStack.add(move)
-                        validMoves = moveGen.generateMoves()
+                        moveGen.generateMoves()
                         break@mvLoop
                     }
                 }
@@ -124,12 +124,17 @@ fun main() =
 
             val bitboardTrackers =
                 listOf(
-                    board::pawnBB,
-                    board::bishopBB,
-                    board::knightBB,
-                    board::rookBB,
-                    board::queenBB,
-                    board::kingBB,
+//                    { board.bitboards[Piece.PAWN]!! },
+//                    { board.bitboards[Piece.KNIGHT]!! },
+//                    { board.bitboards[Piece.BISHOP]!! },
+//                    { board.bitboards[Piece.ROOK]!! },
+//                    { board.bitboards[Piece.QUEEN]!! },
+//                    { board.bitboards[Piece.KING]!! },
+//                    { board.bitboards[Piece.WHITE]!! },
+//                    { board.bitboards[Piece.BLACK]!! },
+//                    moveGen.data::attackedSqrs,
+//                    moveGen.data::checkers,
+                    moveGen.data::orthoPins,
                 ).let {
                     it.mapIndexed { i, bb ->
                         bb to ColorHSLa(360.0 * i / it.size, 1.0, .5, .4).toRGBa()
@@ -151,7 +156,7 @@ fun main() =
                         val piece = board.get(index)
 
 //                        Draw bit clr from bitboard
-                        if (settings.displayBitboards) {
+                        if (options.displayBitboards) {
                             val mask = 1UL shl index
                             for ((bb, clr) in bitboardTrackers) {
                                 if (bb() and mask != 0UL) {
@@ -164,7 +169,7 @@ fun main() =
 //                        Highlight move start/end tile
                         if (
                             pcMoveIndex is Int &&
-                            (pcMoveIndex!! == index || validMoves.any { it.from == pcMoveIndex!! && it.to == index })
+                            (pcMoveIndex!! == index || moveGen.moves.any { it.from == pcMoveIndex!! && it.to == index })
                         ) {
                             drawer.fill = tileHighlight
                             drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
