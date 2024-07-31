@@ -1,11 +1,7 @@
 import org.openrndr.application
-import org.openrndr.color.ColorHSLa
 import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.isolated
 import org.openrndr.draw.loadImage
-import org.openrndr.extra.gui.GUI
-import org.openrndr.extra.parameters.ActionParameter
-import org.openrndr.extra.parameters.BooleanParameter
 import org.openrndr.math.Matrix55
 import org.openrndr.math.Vector2
 import org.openrndr.shape.Rectangle
@@ -48,13 +44,11 @@ fun main() =
     application {
         configure {
             title = "ChessRNDR"
-            width = 1088
-            height = 612
+            width = 800
+            height = 600
         }
         program {
-//            val board = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-//            val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/P2P2PP/r2Q1R1K w kq - 0 2")
-            val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1")
+            val board = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
             val moveStack = ArrayDeque<Move>()
             val moveGen = MoveGen(board)
 
@@ -72,58 +66,51 @@ fun main() =
                     }
                 }
 
-            val gui = GUI()
-            val options =
-                object {
-                    @BooleanParameter("Display Bitboards")
-                    var displayBitboards = true
-
-                    @Suppress("unused")
-                    @ActionParameter("Undo Move")
-                    fun undoMove() {
-                        if (moveStack.isEmpty()) return
-                        board.unmakeMove(moveStack.removeLast())
-                        moveGen.generateMoves()
-                    }
-                }
-            gui.add(options, "Options")
-
-            val tileSize = height / 10.0
-            val boardOffset = (height - tileSize * 8) / 2
+            val tileSize = height / 9.0
+            val edgeOffset = (height - tileSize * 8) / 2
             var mousePos: Vector2? = null
-            var pcMoveIndex: Int? = null
+            var pieceMoveFromSqr: Int? = null
 
 //            Helper functions
-            fun isWithinBoard(vec: Vector2) =
-                vec.x >= boardOffset &&
-                    vec.x < boardOffset + tileSize * 8 &&
-                    vec.y >= boardOffset &&
-                    vec.y < boardOffset + tileSize * 8
+            fun isWithinBoard(vec: Vector2) = vec.x >= 0 && vec.x < tileSize * 8 && vec.y >= 0 && vec.y < tileSize * 8
+
+            fun getFixedBoardVec(vec: Vector2) =
+                Vector2(
+                    vec.x - (width - (8 * tileSize) - edgeOffset),
+                    vec.y - edgeOffset,
+                )
 
             mouse.moved.listen { mousePos = it.position }
             mouse.buttonDown.listen { e ->
-                if (pcMoveIndex == null && isWithinBoard(e.position)) {
-                    pcMoveIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
+                val offsetPos = getFixedBoardVec(e.position)
+
+                if (pieceMoveFromSqr == null && isWithinBoard(offsetPos)) {
+                    pieceMoveFromSqr = (offsetPos / tileSize).toInt().let { it.y * 8 + it.x }
                 }
             }
             mouse.buttonUp.listen { e ->
-                if (pcMoveIndex != null && isWithinBoard(e.position)) {
-                    val toIndex = ((e.position - boardOffset) / tileSize).toInt().let { it.y * 8 + it.x }
+                val offsetPos = getFixedBoardVec(e.position)
+
+                if (pieceMoveFromSqr != null && isWithinBoard(offsetPos)) {
+                    val toSqr = (offsetPos / tileSize).toInt().let { it.y * 8 + it.x }
+
                     mvLoop@for (move in moveGen.moves) {
-                        if (move.from != pcMoveIndex!! || move.to != toIndex) continue
+                        if (move.from != pieceMoveFromSqr || move.to != toSqr) continue
+
                         println(move)
                         board.makeMove(move)
                         moveStack.add(move)
                         moveGen.generateMoves()
+
                         break@mvLoop
                     }
                 }
 
-                pcMoveIndex = null
+                pieceMoveFromSqr = null
             }
 
-            val bitboardTrackers =
-                listOf(
+//            val bitboardTrackers =
+//                listOf(
 //                    { board.bitboards[Piece.PAWN]!! },
 //                    { board.bitboards[Piece.KNIGHT]!! },
 //                    { board.bitboards[Piece.BISHOP]!! },
@@ -132,16 +119,13 @@ fun main() =
 //                    { board.bitboards[Piece.KING]!! },
 //                    { board.bitboards[Piece.WHITE]!! },
 //                    { board.bitboards[Piece.BLACK]!! },
-//                    moveGen.data::attackedSqrs,
-//                    moveGen.data::checkers,
-                    moveGen.data::orthoPins,
-                ).let {
-                    it.mapIndexed { i, bb ->
-                        bb to ColorHSLa(360.0 * i / it.size, 1.0, .5, .4).toRGBa()
-                    }
-                }
+//                ).let {
+//                    it.mapIndexed { i, bb ->
+//                        bb to ColorHSLa(360.0 * i / it.size, 1.0, .5, .4).toRGBa()
+//                    }
+//                }
 
-            extend(gui)
+//            TODO: Add UI to show side-to-move, clocks, etc
             extend {
                 drawer.clear(windowBG)
 
@@ -149,54 +133,53 @@ fun main() =
                 drawer.stroke = null
                 for (x in 0..7) {
                     for (y in 0..7) {
-                        drawer.fill = if ((x + y) % 2 == 0) lightTile else darkTile
-                        drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
-
                         val index = y * 8 + x
                         val piece = board.get(index)
+                        val screenx = width - ((8 - x) * tileSize) - edgeOffset
+                        val screeny = y * tileSize + edgeOffset
 
-//                        Draw bit clr from bitboard
-                        if (options.displayBitboards) {
-                            val mask = 1UL shl index
-                            for ((bb, clr) in bitboardTrackers) {
-                                if (bb() and mask != 0UL) {
-                                    drawer.fill = clr
-                                    drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
-                                }
-                            }
-                        }
+                        drawer.fill = if ((x + y) % 2 == 0) lightTile else darkTile
+                        drawer.rectangle(screenx, screeny, tileSize)
+
+// //                        Draw bit clr from bitboard
+//                        if (options.displayBitboards) {
+//                            val mask = 1UL shl index
+//                            for ((bb, clr) in bitboardTrackers) {
+//                                if (bb() and mask != 0UL) {
+//                                    drawer.fill = clr
+//                                    drawer.rectangle(screenx, screeny, tileSize)
+//                                }
+//                            }
+//                        }
 
 //                        Highlight move start/end tile
                         if (
-                            pcMoveIndex is Int &&
-                            (pcMoveIndex!! == index || moveGen.moves.any { it.from == pcMoveIndex!! && it.to == index })
+                            pieceMoveFromSqr is Int &&
+                            (pieceMoveFromSqr!! == index || moveGen.moves.any { it.from == pieceMoveFromSqr!! && it.to == index })
                         ) {
                             drawer.fill = tileHighlight
-                            drawer.rectangle(x * tileSize + boardOffset, y * tileSize + boardOffset, tileSize)
+                            drawer.rectangle(screenx, screeny, tileSize)
                         }
                         if (piece == Piece.NONE) continue
 
+//                        Draw piece
                         drawer.isolated {
-                            if (pcMoveIndex is Int && pcMoveIndex == index) {
+                            if (pieceMoveFromSqr is Int && pieceMoveFromSqr == index) {
                                 drawer.drawStyle.colorMatrix = translucencyMatrix
                             }
 
                             drawer.image(
                                 pieceSpriteSheet,
                                 pieceLoc[piece]!!,
-                                Rectangle(
-                                    x * tileSize + boardOffset,
-                                    y * tileSize + boardOffset,
-                                    tileSize,
-                                ),
+                                Rectangle(screenx, screeny, tileSize),
                             )
                         }
                     }
                 }
 
 //                Draw moving piece separately
-                if (pcMoveIndex != null) {
-                    val movedPiece = board.get(pcMoveIndex!!)
+                if (pieceMoveFromSqr != null) {
+                    val movedPiece = board.get(pieceMoveFromSqr!!)
                     if (movedPiece != Piece.NONE) {
                         drawer.image(
                             pieceSpriteSheet,
