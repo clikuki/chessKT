@@ -10,6 +10,7 @@ import kotlin.experimental.or
 val lightTile = ColorRGBa.fromHex("#f2e1c3")
 val darkTile = ColorRGBa.fromHex("#c3a082")
 val tileHighlight = ColorRGBa.fromHex("#08ff006c")
+val checkHighlight = ColorRGBa.fromHex("#ff2c2c80")
 val windowBG = ColorRGBa.fromHex("#3a3a3a")
 val translucencyMatrix =
     Matrix55(
@@ -151,6 +152,12 @@ fun main() =
 //                                }
 //                            }
 //                        }
+
+//                        Highlight checked kings
+                        if (moveGen.data.inCheck && piece == board.side or Piece.KING) {
+                            drawer.fill = checkHighlight
+                            drawer.rectangle(screenx, screeny, tileSize)
+                        }
 
 //                        Highlight move start/end tile
                         if (
