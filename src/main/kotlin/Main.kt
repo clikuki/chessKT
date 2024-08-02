@@ -52,6 +52,8 @@ fun main() =
             val board = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
             val moveStack = ArrayDeque<Move>()
             val moveGen = MoveGen(board)
+            moveGen.generateMoves()
+            val engine = Engine(board, moveGen)
 
             val pieceSpriteSheet = loadImage("data/images/1280px-Chess_Pieces.png")
             val spriteSize = pieceSpriteSheet.width / 6.0
@@ -97,10 +99,20 @@ fun main() =
 
                     mvLoop@for (move in moveGen.moves) {
                         if (move.from != pieceMoveFromSqr || move.to != toSqr) continue
+//                        println(move)
 
-                        println(move)
+//                        Player
                         board.makeMove(move)
                         moveStack.add(move)
+
+                        //                        Engine
+                        engine.search(3).let {
+                            if (it != Move.NULLMOVE) {
+                                board.makeMove(it)
+                                moveStack.add(it)
+                            }
+                        }
+
                         moveGen.generateMoves()
 
                         break@mvLoop

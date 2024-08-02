@@ -346,18 +346,18 @@ data class MoveGenData(
     var oppClr: Byte = 0
     var ownKingMask = 0UL
     var ownKingSqr = 0
-    var oppKingMask = 0UL
-    var oppKingSqr = 0
+    private var oppKingMask = 0UL
+    private var oppKingSqr = 0
 
     var oppPieces = 0UL
-    var ownPieces = 0UL
+    private var ownPieces = 0UL
     var allPieces = 0UL
     var emptySqrs = 0UL
     var emptyOrOppSqrs = 0UL
 
     var attackedSqrs = 0UL
     var safeSqrs = 0UL
-    var checkers = 0UL
+    private var checkers = 0UL
     var moveMask = 0UL
 
     var horzPins = 0UL
@@ -492,15 +492,12 @@ data class MoveGenData(
     }
 }
 
+// TODO: Speed up move generation
 class MoveGen(
     board: Board,
 ) {
     val data: MoveGenData = MoveGenData(board)
     var moves = emptyList<Move>()
-
-    init {
-        generateMoves()
-    }
 
     fun generateMoves(): List<Move> {
         val newMoves = mutableListOf<Move>()
@@ -517,6 +514,22 @@ class MoveGen(
 
         moves = newMoves
         return newMoves
+    }
+
+    fun generateMoves(mvs: MutableList<Move>): List<Move> {
+        data.update()
+
+        generateKingMoves(mvs, data)
+
+        if (!data.inDoubleCheck) {
+            generateOrthogonalMoves(mvs, data)
+            generateDiagonalMoves(mvs, data)
+            generatePawnMoves(mvs, data)
+            generateKnightMoves(mvs, data)
+        }
+
+        moves = mvs
+        return mvs
     }
 }
 

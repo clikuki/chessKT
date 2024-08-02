@@ -11,6 +11,7 @@ data class Move(
     val type: Byte,
 ) {
     companion object {
+        val NULLMOVE = Move(0, 0, 0)
         const val QUIET: Byte = 0b0000
         const val DBL_PUSH: Byte = 0b0001
         const val K_CASTLE: Byte = 0b0010
