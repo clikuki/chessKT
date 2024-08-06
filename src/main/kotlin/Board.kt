@@ -75,6 +75,24 @@ class Board {
 
     fun getKingBB(color: Byte = side) = bitboards[color]!! and bitboards[Piece.KING]!!
 
+    val wPawnBB get() = bitboards[Piece.PAWN]!! and bitboards[Piece.WHITE]!!
+    val bPawnBB get() = bitboards[Piece.PAWN]!! and bitboards[Piece.BLACK]!!
+
+    val wBishopBB get() = bitboards[Piece.BISHOP]!! and bitboards[Piece.WHITE]!!
+    val bBishopBB get() = bitboards[Piece.BISHOP]!! and bitboards[Piece.BLACK]!!
+
+    val wRookBB get() = bitboards[Piece.ROOK]!! and bitboards[Piece.WHITE]!!
+    val bRookBB get() = bitboards[Piece.ROOK]!! and bitboards[Piece.BLACK]!!
+
+    val wKnightBB get() = bitboards[Piece.KNIGHT]!! and bitboards[Piece.WHITE]!!
+    val bKnightBB get() = bitboards[Piece.KNIGHT]!! and bitboards[Piece.BLACK]!!
+
+    val wQueenBB get() = bitboards[Piece.QUEEN]!! and bitboards[Piece.WHITE]!!
+    val bQueenBB get() = bitboards[Piece.QUEEN]!! and bitboards[Piece.BLACK]!!
+
+    val wKingBB get() = bitboards[Piece.KING]!! and bitboards[Piece.WHITE]!!
+    val bKingBB get() = bitboards[Piece.KING]!! and bitboards[Piece.BLACK]!!
+
     fun get(pos: Int) = grid[pos]
 
     fun set(
