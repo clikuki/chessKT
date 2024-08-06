@@ -1,4 +1,6 @@
 import kotlin.experimental.and
+import kotlin.time.DurationUnit
+import kotlin.time.measureTimedValue
 
 fun lsb(bb: ULong) = bb.takeLowestOneBit().let { it to it.countTrailingZeroBits() }
 
@@ -534,34 +536,86 @@ class MoveGen(
 }
 
 fun main() {
-//    //    Single check
-//    val depth = 6
-//    val board = Board.from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-//    println("$depth: ${perft(MoveGen(board), depth, emptyList())}")
+// //    Time perfs
+//    val board = Board.from("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w - - 0 1")
+//    val data = MoveGenData(board)
+//
+//    val loopCnt = 100000
+//    measureTime {
+//        val moveGen = MoveGen(board)
+//        for (i in 0..loopCnt) {
+//            moveGen.generateMoves()
+//        }
+//    }.let { println("Full move gen: ${it.toDouble(DurationUnit.MILLISECONDS)}ms") }
+//    measureTime {
+//        for (i in 0..loopCnt) {
+//            data.update()
+//        }
+//    }.let { println("Data update: ${it.toDouble(DurationUnit.MILLISECONDS)}ms") }
+//    measureTime {
+//        val mvs = mutableListOf<Move>()
+//        for (i in 0..loopCnt) {
+//            generateOrthogonalMoves(mvs, data)
+//        }
+//    }.let { println("Orthogonal moves: ${it.toDouble(DurationUnit.MILLISECONDS)}ms") }
+//    measureTime {
+//        val mvs = mutableListOf<Move>()
+//        for (i in 0..loopCnt) {
+//            generateDiagonalMoves(mvs, data)
+//        }
+//    }.let { println("Diagonal moves: ${it.toDouble(DurationUnit.MILLISECONDS)}ms") }
+//    measureTime {
+//        val mvs = mutableListOf<Move>()
+//        for (i in 0..loopCnt) {
+//            generatePawnMoves(mvs, data)
+//        }
+//    }.let { println("Pawn moves: ${it.toDouble(DurationUnit.MILLISECONDS)}ms") }
+//    measureTime {
+//        val mvs = mutableListOf<Move>()
+//        for (i in 0..loopCnt) {
+//            generateKnightMoves(mvs, data)
+//        }
+//    }.let { println("Knight moves: ${it.toDouble(DurationUnit.MILLISECONDS)}ms") }
+//    measureTime {
+//        val mvs = mutableListOf<Move>()
+//        for (i in 0..loopCnt) {
+//            generateKingMoves(mvs, data)
+//        }
+//    }.let { println("King moves: ${it.toDouble(DurationUnit.MILLISECONDS)}ms") }
 
-    //    Divide by move
-    val depth = 3
-    val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 1 1")
-//    g1h1 > b2a1r > d1a1
-//    val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/P2P2PP/r2Q1R1K w kq - 0 2")
-    val moveGen = MoveGen(board)
-    var totalNodes = 0UL
-    for (move in moveGen.generateMoves()) {
-        board.makeMove(move)
-        val nodeCnt = perft(MoveGen(board), depth - 1, emptyList())
-        totalNodes += nodeCnt
-        val promoTo =
-            when (move.type and 0b1011) {
-                0b1000.b -> "n"
-                0b1001.b -> "b"
-                0b1010.b -> "r"
-                0b1011.b -> "q"
-                else -> ""
-            }
-        println("${Board.indexToSqr(move.from)}${Board.indexToSqr(move.to)}$promoTo: $nodeCnt")
-        board.unmakeMove(move)
+    //    Single check
+    val depth = 5
+    val board = Board.from("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")
+    measureTimedValue { perft(MoveGen(board), depth, emptyList()) }.let {
+        val (nodeCnt, duration) = it
+        val timeInMs = duration.toDouble(DurationUnit.MILLISECONDS)
+        println("Depth: $depth")
+        println("Nodes: $nodeCnt")
+        println("Total time: ${timeInMs}ms")
+        println("Nodes per second: ${nodeCnt / (timeInMs.toUInt() / 1000U)}")
     }
-    println("\nTotal nodes: $totalNodes")
+
+//    //    Divide by move
+//    val depth = 3
+//    val board = Board.from("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1R1K b kq - 1 1")
+//    val moveGen = MoveGen(board)
+//    var totalNodes = 0UL
+//    for (move in moveGen.generateMoves()) {
+//        board.makeMove(move)
+//        val nodeCnt = perft(MoveGen(board), depth - 1, emptyList())
+//        totalNodes += nodeCnt
+//        val promoTo =
+//            when (move.type and 0b1011) {
+//                0b1000.b -> "n"
+//                0b1001.b -> "b"
+//                0b1010.b -> "r"
+//                0b1011.b -> "q"
+//                else -> ""
+//            }
+//        println("${Board.indexToSqr(move.from)}${Board.indexToSqr(move.to)}$promoTo: $nodeCnt")
+//        board.unmakeMove(move)
+//    }
+//    println("\nTotal nodes: $totalNodes")
 
 //    //    Check in depths
 //    for (i in 1..5) {

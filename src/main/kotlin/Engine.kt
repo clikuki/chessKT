@@ -1,8 +1,13 @@
+import kotlin.time.Duration
+import kotlin.time.measureTimedValue
+
+inline val ULong.cnt get() = countOneBits()
+
 class Engine(
     private val board: Board,
     private val moveGen: MoveGen,
 ) {
-    private fun attacked(side: Byte): ULong {
+    private fun getAttackedSqrs(side: Byte): ULong {
         val orthoSliders = (board.getQueenBB(side) or board.getRookBB(side))
         val diagonalSliders = (board.getQueenBB(side) or board.getBishopBB(side))
         val empty = board.occupancyBB.inv()
@@ -24,34 +29,35 @@ class Engine(
         return attackedSqrs or (if (side == Piece.WHITE) Shift::soEa else Shift::noEa)(pawns)
     }
 
+//    1/(1+10**(-pawnAdvantage/4))
+//    Maybe score capture moves differently to silent moves?
     private fun evaluate(): Int {
-//        TODO: Write a proper evaluation function
-        val oppClr = if (board.side == Piece.WHITE) Piece.BLACK else Piece.WHITE
-        val ownSqrs = attacked(board.side)
-        val oppSqrs = attacked(oppClr)
-//        Maybe score capture moves differently to silent moves?
-        val mobility = (ownSqrs and oppSqrs.inv()).countOneBits() - (oppSqrs and ownSqrs.inv()).countOneBits()
+        val wAtks = getAttackedSqrs(Piece.WHITE)
+        val bAtks = getAttackedSqrs(Piece.BLACK)
+        val mobility = (wAtks and bAtks.inv()).cnt - (bAtks and wAtks.inv()).cnt
 
-//        println("Mobility: $mobility")
-//        println("Pawns: ${board.getPawnBB().countOneBits() - board.getPawnBB(oppClr).countOneBits()}")
-//        println("Knights: ${(board.getKnightBB().countOneBits() - board.getKnightBB(oppClr).countOneBits()) * 3}")
-//        println("Bishops: ${(board.getBishopBB().countOneBits() - board.getBishopBB(oppClr).countOneBits()) * 3}")
-//        println("Rooks: ${(board.getRookBB().countOneBits() - board.getRookBB(oppClr).countOneBits()) * 5}")
-//        println("Queens: ${(board.getQueenBB().countOneBits() - board.getQueenBB(oppClr).countOneBits()) * 9}")
-//        println("Kings: ${(board.getKingBB().countOneBits() - board.getKingBB(oppClr).countOneBits()) * 200}")
-//        println("============\n")
+        val material =
+            (board.wPawnBB.countOneBits() - board.bPawnBB.countOneBits()) * 100 +
+                (board.wBishopBB.countOneBits() - board.bBishopBB.countOneBits()) * 350 +
+                (board.wKnightBB.countOneBits() - board.bKnightBB.countOneBits()) * 350 +
+                (board.wRookBB.countOneBits() - board.bRookBB.countOneBits()) * 525 +
+                (board.wQueenBB.countOneBits() - board.bQueenBB.countOneBits()) * 1000 +
+                (board.bKingBB.countOneBits() - board.bKingBB.countOneBits()) * 10000
 
-        return (board.getPawnBB().countOneBits() - board.getPawnBB(oppClr).countOneBits()) +
-            (board.getKnightBB().countOneBits() - board.getKnightBB(oppClr).countOneBits()) * 3 +
-            (board.getBishopBB().countOneBits() - board.getBishopBB(oppClr).countOneBits()) * 3 +
-            (board.getRookBB().countOneBits() - board.getRookBB(oppClr).countOneBits()) * 5 +
-            (board.getQueenBB().countOneBits() - board.getQueenBB(oppClr).countOneBits()) * 9 +
-            (board.getKingBB().countOneBits() - board.getKingBB(oppClr).countOneBits()) * 200 +
-            mobility
+        val toMove = if (board.side == Piece.WHITE) 1 else -1
+        return (material + mobility) * toMove
     }
 
+    var evalTime = Duration.ZERO
+
     private fun negaMax(depth: Int): Int {
-        if (depth <= 0) return evaluate()
+        if (depth <= 0) {
+//            return evaluate()
+            return measureTimedValue { evaluate() }.let {
+                evalTime += it.duration
+                it.value
+            }
+        }
 
         var max = Int.MIN_VALUE
         val mvs = moveGen.generateMoves(mutableListOf())
@@ -79,6 +85,7 @@ class Engine(
                 bestmv = mv
             }
             board.unmakeMove(mv)
+//            mvUnmakeTime += measureTime { board.unmakeMove(mv) }.toDouble(DurationUnit.MILLISECONDS)
 
 //            val promoTo =
 //                when (mv.type and 0b1011) {

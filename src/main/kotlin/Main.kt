@@ -6,6 +6,7 @@ import org.openrndr.math.Matrix55
 import org.openrndr.math.Vector2
 import org.openrndr.shape.Rectangle
 import kotlin.experimental.or
+import kotlin.time.measureTime
 
 val lightTile = ColorRGBa.fromHex("#f2e1c3")
 val darkTile = ColorRGBa.fromHex("#c3a082")
@@ -105,12 +106,17 @@ fun main() =
                         board.makeMove(move)
                         moveStack.add(move)
 
-                        //                        Engine
-                        engine.search(3).let {
-                            if (it != Move.NULLMOVE) {
-                                board.makeMove(it)
-                                moveStack.add(it)
+//                        Engine
+                        measureTime {
+                            engine.search(4).let {
+                                if (it != Move.NULLMOVE) {
+                                    board.makeMove(it)
+                                    moveStack.add(it)
+                                }
                             }
+                        }.let {
+                            println("Evaluation: ${engine.evalTime }")
+                            println("Overall: $it")
                         }
 
                         moveGen.generateMoves()
