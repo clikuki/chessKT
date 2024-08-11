@@ -31,7 +31,7 @@ class Engine(
 
 //    1/(1+10**(-pawnAdvantage/4))
 //    Maybe score capture moves differently to silent moves?
-    private fun evaluate(): Int {
+    private fun evaluate(): Float {
         val wAtks = getAttackedSqrs(Piece.WHITE)
         val bAtks = getAttackedSqrs(Piece.BLACK)
         val mobility = (wAtks and bAtks.inv()).cnt - (bAtks and wAtks.inv()).cnt
@@ -44,47 +44,68 @@ class Engine(
                 (board.wQueenBB.countOneBits() - board.bQueenBB.countOneBits()) * 1000 +
                 (board.bKingBB.countOneBits() - board.bKingBB.countOneBits()) * 10000
 
-        val toMove = if (board.side == Piece.WHITE) 1 else -1
+        val toMove = if (board.side == Piece.WHITE) 1f else -1f
         return (material + mobility) * toMove
     }
 
     var evalTime = Duration.ZERO
 
-    private fun negaMax(depth: Int): Int {
+    private fun negaMax(
+        alpha: Float,
+        beta: Float,
+        depth: Int,
+    ): Float {
         if (depth <= 0) {
-//            return evaluate()
             return measureTimedValue { evaluate() }.let {
                 evalTime += it.duration
                 it.value
             }
         }
 
-        var max = Int.MIN_VALUE
         val mvs = moveGen.generateMoves(mutableListOf())
-
-        for (mv in mvs) {
-            board.makeMove(mv)
-            val score = -negaMax(depth - 1)
-            if (score > max) max = score
-            board.unmakeMove(mv)
+        if (mvs.isEmpty()) {
+            return measureTimedValue { evaluate() }.let {
+                evalTime += it.duration
+                it.value
+            }
         }
 
-        return max
+        var bestValue = Float.NEGATIVE_INFINITY
+        var a = alpha
+        for (mv in mvs) {
+            board.makeMove(mv)
+            val score = -negaMax(-beta, -a, depth - 1)
+            board.unmakeMove(mv)
+
+            if (score > bestValue) {
+                bestValue = score
+                if (score > a) a = score
+            }
+
+            if (score >= beta) return bestValue
+        }
+
+        return bestValue
     }
 
     fun search(depth: Int): Move {
-        var max = Int.MIN_VALUE
-        var bestmv = Move.NULLMOVE
-        val mvs = moveGen.generateMoves(mutableListOf())
+        if (depth == 0) return Move.NULLMOVE
 
+        val mvs = moveGen.generateMoves(mutableListOf())
+        if (mvs.isEmpty()) return Move.NULLMOVE
+
+        var bestValue = Float.NEGATIVE_INFINITY
+        var bestMv = Move.NULLMOVE
         for (mv in mvs) {
             board.makeMove(mv)
-            val score = -negaMax(depth - 1)
-            if (score > max) {
-                max = score
-                bestmv = mv
-            }
+            val score = -negaMax(-Float.POSITIVE_INFINITY, -bestValue, depth - 1)
             board.unmakeMove(mv)
+
+            if (score > bestValue) {
+                bestValue = score
+                bestMv = mv
+            }
+
 //            mvUnmakeTime += measureTime { board.unmakeMove(mv) }.toDouble(DurationUnit.MILLISECONDS)
 
 //            val promoTo =
@@ -98,6 +119,6 @@ class Engine(
 //            println("${Board.indexToSqr(mv.from)}${Board.indexToSqr(mv.to)}$promoTo: $score")
         }
 
-        return bestmv
+        return bestMv
     }
 }
